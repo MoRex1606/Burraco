@@ -234,6 +234,42 @@ button { font: inherit; color: inherit; }
 .net-note.err { color: var(--warn); font-weight: 600; }
 .seat.offline .name { opacity: .5; text-decoration: line-through; }
 .net-badge { font-size: 11px; color: var(--warn); }
+
+/* Sprechen und Schnellnachrichten */
+.comm { display: flex; gap: 4px; flex: none; }
+.comm-btn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--brass-dim); background: rgba(0,0,0,.3); color: var(--brass); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.comm-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.comm-btn.off { color: var(--ink-dim); opacity: .75; }
+.comm-btn.live { background: var(--brass); color: #1a1408; border-color: var(--brass); box-shadow: 0 0 0 3px rgba(220,180,98,.25); }
+.lobby-voice { display: flex; align-items: center; gap: 10px; justify-content: center; }
+.top:has(.comm) .score { min-width: 52px; padding-inline: 8px; }
+.seat, .hand { position: relative; }
+.say {
+  position: absolute; left: 50%; top: 50%; z-index: 4; pointer-events: none; white-space: nowrap;
+  background: var(--card); color: #1a1408; font: 700 15px var(--f-body); padding: 6px 12px; border-radius: 14px;
+  border: 2px solid var(--brass); box-shadow: 0 6px 18px rgba(0,0,0,.5);
+  animation: say 3.5s ease forwards;
+}
+.say.emo { font-size: 34px; line-height: 1; padding: 4px 8px; border-radius: 50%; }
+.hand > .say { top: 6px; }
+@keyframes say {
+  0% { opacity: 0; transform: translate(-50%, -40%) scale(.6); }
+  8% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  14%, 85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -70%) scale(1); }
+}
+.chat-sheet { position: fixed; inset: 0; z-index: 6; display: flex; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.35); padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+.chat-panel { background: var(--felt-deep); border-color: var(--brass); width: min(100%, 420px); padding: 12px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; }
+.chat-head { display: flex; gap: 8px; align-items: center; }
+.chat-head .seg { flex: 1; }
+.chat-grid { display: grid; gap: 8px; }
+.chat-grid.e { grid-template-columns: repeat(5, 1fr); }
+.chat-grid.m { grid-template-columns: repeat(2, 1fr); }
+.chat-grid button { border: 1px solid var(--brass-dim); background: rgba(0,0,0,.3); border-radius: 12px; cursor: pointer; padding: 10px 6px; font-weight: 700; font-size: 16px; color: var(--ink); }
+.chat-grid.e button { font-size: 30px; padding: 6px 0; line-height: 1.2; }
+.chat-grid button:active { background: var(--brass); color: #1a1408; }
+@keyframes say-still { 0%, 85% { opacity: 1; transform: translate(-50%, -50%); } 100% { opacity: 0; transform: translate(-50%, -50%); } }
+@media (prefers-reduced-motion: reduce) { .say { animation-name: say-still; } }
 </style>
 <script src="peerjs.min.js"></script>
 </head>
@@ -802,14 +838,14 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v9 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v10 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
 function seatHTML(st, p, compact) {
   const active = st.current === p && (st.phase === "draw" || st.phase === "play");
   const n = st.hands[p].length, pl = st.players[p];
-  return `<div class="seat ${active ? "active" : ""} ${pl.offline ? "offline" : ""}"><span class="name">${esc(pl.name)}${pl.bot ? " 🤖" : ""}</span>
+  return `<div class="seat ${active ? "active" : ""} ${pl.offline ? "offline" : ""}">${sayHTML(p)}<span class="name">${esc(pl.name)}${pl.bot ? " 🤖" : ""}</span>
     <div class="fan">${backs(Math.min(n, compact ? 4 : 8))}</div><small>${n} أوراق</small></div>`;
 }
 function meldsHTML(st, t, title) {
@@ -854,7 +890,9 @@ function renderTable() {
         <div class="score panel us"><small>نحن</small><b>${st.scores[us]}</b></div>
         <div class="score panel"><small>الخصم</small><b>${st.scores[them]}</b></div>
       </div>
-      <span class="goal">${net ? `<span class="net-badge">${net.host ? "المضيف · " : ""}${netBadge()}</span><br>` : ""}الهدف ${r.target}<br>الختم <bdi dir="ltr">${r.closeClean === 1 ? "200+100" : "2×200+100"}</bdi></span>
+      ${commBar(true)}
+      ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
+        : `<span class="goal">الهدف ${r.target}<br>الختم <bdi dir="ltr">${r.closeClean === 1 ? "200+100" : "2×200+100"}</bdi></span>`}
     </div>
     <div class="board">${seatHTML(st, rel(four ? 2 : 1), false)}
     <div class="mid">
@@ -880,10 +918,11 @@ function renderTable() {
         : `<button class="btn" data-act="discard" ${canPlay && ui.selected.size === 1 ? "" : "disabled"}>ارمِ</button>`}
       ${canBot ? '<button class="btn" data-act="botseat">دع الكمبيوتر يلعب عنه</button>' : ""}
     </div></div>
-    <div class="hand" style="--overlap:${handOverlap(hand.length)}px"><div class="hand-inner">
+    <div class="hand" style="--overlap:${handOverlap(hand.length)}px">${sayHTML(ui.me)}<div class="hand-inner">
       ${hand.map(c => cardHTML(c, ui.selected.has(c.id) ? "sel" : "")).join("")}</div></div>`;
 
   if (st.phase === "roundOver" || st.phase === "gameOver") html += summaryHTML(st);
+  html += chatPanelHTML();
   if (ui.confirmQuit) html += quitConfirmHTML();
   app.innerHTML = html;
   if (meldScroll !== null) app.querySelector(".melds").scrollTop = meldScroll;
@@ -1017,6 +1056,7 @@ app.addEventListener("click", e => {
     if (!ui.selected.size) return;
     return humanAction({ a: "add", meld: el.dataset.meld, ids: selectedInHandOrder() });
   }
+  if (commClick(act, el, e)) return;
   if (onlineClick(act, el) !== false) return;
 });
 
@@ -1115,6 +1155,7 @@ function hostOpen() {
   const me = net, peer = new Peer(NET_PREFIX + me.code, peerOptions());
   me.peer = peer;
   peer.on("open", () => { if (net !== me) return; me.status = "open"; me.tries = 0; render(); });
+  peer.on("call", call => { if (net === me) voiceIncoming(call); else call.close(); });
   peer.on("connection", conn => {
     conn.on("data", d => { if (net === me) hostOnData(conn, d); });
     conn.on("close", () => { if (net === me) hostOnClose(conn); });
@@ -1137,6 +1178,7 @@ function hostOpen() {
       if (now - (conn.heard || now) > 15000) { conn.close(); hostOnClose(conn); continue; }
       if (conn.open) conn.send({ t: "ping" });
     }
+    voiceSync();
   }, 5000);
 }
 const hostPlayer = cid => ui.st ? ui.st.players.findIndex(p => p.cid === cid) : -1;
@@ -1164,6 +1206,13 @@ function hostOnData(conn, d) {
     net.sent.delete(conn);
     render();
     runComputer();
+    return;
+  }
+  if (d.t === "say") {
+    const seat = hostPlayer(conn.cid), now = Date.now();
+    if (!ui.st || seat < 0 || now - (conn.saidAt || 0) < 1000) return;
+    conn.saidAt = now;
+    hostSay(seat, d.k, d.i);
     return;
   }
   if (d.t === "act") {
@@ -1211,6 +1260,7 @@ function hostBroadcast() {
     net.sent.set(conn, json);
     conn.send(msg);
   }
+  hostVoiceList();
   try {
     localStorage.setItem("brk-host", JSON.stringify({ code: net.code, seats: net.seats.map(s => s && { name: s.name, cid: s.cid }),
       mode: ui.mode, close: ui.close, st: ui.st, me: ui.me }));
@@ -1251,6 +1301,7 @@ function clientPeer(me) {
   const peer = new Peer(peerOptions());
   me.peer = peer;
   peer.on("open", () => { if (net === me) clientConnect(me); });
+  peer.on("call", call => { if (net === me) voiceIncoming(call); else call.close(); });
   peer.on("disconnected", () => setTimeout(() => { if (net === me && !peer.destroyed) peer.reconnect(); }, 1500));
   peer.on("error", e => {
     if (net !== me) return;
@@ -1263,6 +1314,7 @@ function clientPeer(me) {
       if (Date.now() - me.heard > 15000) { me.conn.close(); clientLost(me); }
       else me.conn.send({ t: "ping" });
     }
+    voiceSync();
   }, 5000);
 }
 function clientConnect(me) {
@@ -1317,6 +1369,8 @@ function clientOnData(me, d) {
     render();
   }
   else if (d.t === "err") { ui.msg = String(d.msg); render(); }
+  else if (d.t === "voice" && Array.isArray(d.ids)) voiceSetIds(d.ids);
+  else if (d.t === "said" && ui.st) sayShow(Number(d.seat), d.k, Number(d.i));
   else if (d.t === "full") { localStorage.removeItem("brk-guest"); me.full = true; netLeave(); ui.notice = String(d.msg); ui.screen = "start"; ui.st = null; render(); }
 }
 function netSend(msg) {
@@ -1328,7 +1382,221 @@ function netLeave() {
   const me = net;
   net = null;
   clearInterval(me.ping); clearTimeout(me.retry);
+  voiceStop(); ui.chat = false; ui.say = {};
   try { me.peer && me.peer.destroy(); } catch (e) {}
+}
+
+// ---------- Sprechen und Schnellnachrichten ----------
+// Sprache: jedes Gerät ruft jedes andere direkt an (WebRTC über PeerJS). Der Gastgeber schickt die Liste der Peer-IDs,
+// das Gerät mit der kleineren ID ruft an. Ohne Mikrofon wird eine stille Spur gesendet, so ist die Verbindung
+// schon da, wenn jemand sein Mikrofon einschaltet (dann wird nur die Spur getauscht, kein neuer Anruf).
+const voice = { speaker: localStorage.getItem("brk-speaker") !== "0", mic: false, micStream: null, silent: null, calls: new Map(), ids: [] };
+const audioBox = document.createElement("div");
+audioBox.hidden = true;
+document.body.appendChild(audioBox);
+
+function silentTrack() {
+  if (voice.silent && voice.silent.readyState === "live") return voice.silent;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    voice.ctx = voice.ctx || new AC();
+    const osc = voice.ctx.createOscillator(), gain = voice.ctx.createGain(), dst = voice.ctx.createMediaStreamDestination();
+    gain.gain.value = 0; osc.connect(gain); gain.connect(dst); osc.start();
+    voice.silent = dst.stream.getAudioTracks()[0];
+  } catch (e) { voice.silent = null; }
+  return voice.silent;
+}
+function outTrack() { return (voice.mic && voice.micStream && voice.micStream.getAudioTracks()[0]) || silentTrack(); }
+function outStream() { const t = outTrack(); return t ? new MediaStream([t]) : new MediaStream(); }
+function myPeerId() { return net && net.peer && net.peer.open ? net.peer.id : null; }
+
+function voiceAttach(call) {
+  const old = voice.calls.get(call.peer);
+  if (old && old.call !== call) voiceDrop(call.peer);
+  const v = { call, audio: null };
+  voice.calls.set(call.peer, v);
+  call.on("stream", stream => {
+    if (voice.calls.get(call.peer) !== v) return;
+    if (!v.audio) {
+      v.audio = document.createElement("audio");
+      v.audio.autoplay = true; v.audio.setAttribute("playsinline", "");
+      audioBox.appendChild(v.audio);
+    }
+    if (v.audio.srcObject !== stream) v.audio.srcObject = stream;
+    v.audio.muted = !voice.speaker;
+    v.audio.play().catch(() => {});
+  });
+  const gone = () => { if (voice.calls.get(call.peer) === v) voiceDrop(call.peer); };
+  call.on("close", gone);
+  call.on("error", gone);
+  // Hängt eine Verbindung fest, wird sie verworfen und beim nächsten Abgleich neu aufgebaut.
+  setTimeout(() => { if (voice.calls.get(call.peer) === v && !v.audio) voiceDrop(call.peer); }, 20000);
+}
+function voiceDrop(id) {
+  const v = voice.calls.get(id);
+  if (!v) return;
+  voice.calls.delete(id);
+  try { v.call.close(); } catch (e) {}
+  if (v.audio) { v.audio.srcObject = null; v.audio.remove(); }
+}
+function voiceIncoming(call) {
+  // Die neue Teilnehmerliste kann kurz nach dem Anruf ankommen: einmal kurz warten.
+  const ok = () => net && voice.ids.includes(call.peer);
+  const take = () => { call.answer(outStream()); voiceAttach(call); };
+  if (ok()) return take();
+  setTimeout(() => ok() ? take() : call.close(), 2000);
+}
+// Mit der Liste aller Teilnehmer abgleichen: fehlende anrufen, verschwundene auflegen.
+function voiceSync() {
+  const me = myPeerId();
+  if (!me) return;
+  for (const id of [...voice.calls.keys()]) if (!voice.ids.includes(id)) voiceDrop(id);
+  for (const id of voice.ids) {
+    if (id === me || id < me || voice.calls.has(id)) continue;
+    try { const call = net.peer.call(id, outStream()); if (call) voiceAttach(call); } catch (e) {}
+  }
+}
+function voiceSetIds(ids) {
+  voice.ids = ids.filter(id => typeof id === "string").slice(0, 8);
+  voiceSync();
+}
+function voiceStop() {
+  for (const id of [...voice.calls.keys()]) voiceDrop(id);
+  voice.ids = [];
+  micOff();
+}
+function micOff() {
+  voice.mic = false;
+  if (voice.micStream) voice.micStream.getTracks().forEach(t => t.stop());
+  voice.micStream = null;
+  voiceSwapTrack();
+}
+function voiceSwapTrack() {
+  const t = outTrack();
+  for (const v of voice.calls.values()) {
+    const pc = v.call.peerConnection;
+    if (!pc) continue;
+    const s = pc.getSenders().find(s => !s.track || s.track.kind === "audio");
+    if (s && s.track !== t) s.replaceTrack(t).catch(() => {});
+  }
+}
+async function micToggle() {
+  if (voice.mic) { micOff(); return render(); }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { ui.msg = "المايك يعمل فقط من رابط الموقع (https)."; return render(); }
+  voice.ctx && voice.ctx.resume && voice.ctx.resume().catch(() => {});
+  voice.mic = true; render();
+  try {
+    voice.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    if (!voice.mic || !net) { micOff(); return render(); }
+    voiceSwapTrack();
+  } catch (e) {
+    voice.mic = false; voice.micStream = null;
+    ui.msg = "لم يُسمح باستخدام المايك. اسمح به من إعدادات المتصفح.";
+  }
+  render();
+}
+function speakerToggle() {
+  voice.speaker = !voice.speaker;
+  localStorage.setItem("brk-speaker", voice.speaker ? "1" : "0");
+  for (const v of voice.calls.values()) if (v.audio) { v.audio.muted = !voice.speaker; if (voice.speaker) v.audio.play().catch(() => {}); }
+  render();
+}
+// iPhone spielt Ton erst nach einer Berührung ab: bei jedem Antippen hängende Audios neu starten.
+document.addEventListener("pointerdown", () => {
+  voice.ctx && voice.ctx.state === "suspended" && voice.ctx.resume().catch(() => {});
+  for (const v of voice.calls.values()) if (v.audio && v.audio.paused && v.audio.srcObject) v.audio.play().catch(() => {});
+}, true);
+
+// Gastgeber: Liste der Peer-IDs an alle schicken, wenn sie sich ändert.
+function hostVoiceList() {
+  const ids = [net.peer && net.peer.id].concat([...net.conns.values()].filter(c => c.open && c.peer).map(c => c.peer)).filter(Boolean);
+  const key = ids.join(",");
+  for (const conn of net.conns.values()) {
+    if (!conn.open || conn.vsent === key) continue;
+    conn.vsent = key;
+    conn.send({ t: "voice", ids });
+  }
+  if (net.vkey !== key) { net.vkey = key; voiceSetIds(ids); }
+}
+
+const SVG = {
+  mic: '<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  spk: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
+  spkOff: '<path d="M4 9h4l5-4v14l-5-4H4z"/>',
+  chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10.5h.01M12 10.5h.01M16 10.5h.01" stroke-width="2.6"/>',
+  slash: '<path d="M4 4l16 16"/>',
+};
+const icon = (p, off) => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}${off ? SVG.slash : ""}</svg>`;
+function commBar(chat) {
+  if (!net) return "";
+  return `<div class="comm">
+    <button class="comm-btn ${voice.speaker ? "on" : "off"}" data-act="speaker" aria-pressed="${voice.speaker}" aria-label="${voice.speaker ? "اكتم صوت الآخرين" : "شغّل صوت الآخرين"}">${icon(voice.speaker ? SVG.spk : SVG.spkOff, !voice.speaker)}</button>
+    <button class="comm-btn ${voice.mic ? "on live" : "off"}" data-act="mic" aria-pressed="${voice.mic}" aria-label="${voice.mic ? "أغلق المايك" : "افتح المايك"}">${icon(SVG.mic, !voice.mic)}</button>
+    ${chat ? `<button class="comm-btn ${ui.chat ? "on" : ""}" data-act="chat" aria-label="رسائل سريعة">${icon(SVG.chat)}</button>` : ""}
+  </div>`;
+}
+
+// Schnellnachrichten: nur feste Emojis und Sätze, verschickt wird nur die Nummer.
+const QUICK = {
+  e: ["🥹", "😥", "😨", "😔", "😂", "🤯", "😭", "🤬", "🥵"],
+  m: ["شكرا", "أسرع لو سمحت", "آسف", "عفية", "ابلع", "عاشت ايدك"],
+};
+const SAY_MS = 3500;
+ui.say = {};
+ui.chatTab = "e";
+function sayShow(seat, k, i) {
+  const text = QUICK[k] && QUICK[k][i];
+  if (text === undefined || !ui.st || !ui.st.players[seat]) return;
+  const s = { k, text, at: Date.now() };
+  ui.say[seat] = s;
+  setTimeout(() => { if (ui.say[seat] === s) { delete ui.say[seat]; render(); } }, SAY_MS);
+  render();
+}
+function sayHTML(seat) {
+  const s = ui.say[seat];
+  if (!s) return "";
+  return `<span class="say ${s.k === "e" ? "emo" : ""}" style="animation-delay:-${Date.now() - s.at}ms">${esc(s.text)}</span>`;
+}
+function saySend(k, i) {
+  ui.chat = false;
+  if (!net || !ui.st) return render();
+  if (net.host) return hostSay(ui.me, k, i);
+  netSend({ t: "say", k, i });
+  render();
+}
+function hostSay(seat, k, i) {
+  if (!(k in QUICK) || !Number.isInteger(i) || i < 0 || i >= QUICK[k].length) return;
+  for (const conn of net.conns.values()) if (conn.open) conn.send({ t: "said", seat, k, i });
+  sayShow(seat, k, i);
+}
+function chatPanelHTML() {
+  if (!ui.chat || !net) return "";
+  const tab = ui.chatTab;
+  return `<div class="chat-sheet" data-act="chatclose"><div class="chat-panel panel" role="dialog" aria-label="رسائل سريعة">
+    <div class="chat-head">
+      <div class="seg" role="tablist">
+        <button class="${tab === "e" ? "on" : ""}" data-act="chattab" data-v="e">إيموجي</button>
+        <button class="${tab === "m" ? "on" : ""}" data-act="chattab" data-v="m">رسائل</button>
+      </div>
+      <button class="icon-btn" data-act="chatclose" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="chat-grid ${tab}">${QUICK[tab].map((t, i) => `<button data-act="say" data-k="${tab}" data-i="${i}">${esc(t)}</button>`).join("")}</div>
+  </div></div>`;
+}
+function commClick(act, el, e) {
+  if (act === "speaker") { speakerToggle(); return true; }
+  if (act === "mic") { micToggle(); return true; }
+  if (act === "chat") { ui.chat = !ui.chat; render(); return true; }
+  if (act === "chatclose") { if (e.target === el || el.tagName === "BUTTON") { ui.chat = false; render(); } return true; }
+  if (act === "chattab") { ui.chatTab = el.dataset.v; render(); return true; }
+  if (act === "say") {
+    const now = Date.now();
+    if (now - (ui.saidAt || 0) < 1200) return true;
+    ui.saidAt = now;
+    saySend(el.dataset.k, Number(el.dataset.i));
+    return true;
+  }
+  return false;
 }
 
 // ----- Bildschirme -----
@@ -1373,6 +1641,7 @@ function renderLobby() {
   app.innerHTML = `<div class="start">
     <div><p class="sub">كود الغرفة</p><p class="room-code">${esc(L.code)}</p>
       <p class="sub">${host ? (net.status === "open" ? "أرسل الكود أو الرابط لأصدقائك" : "جارِ فتح الغرفة …") : (net.status === "open" ? "بانتظار المضيف ليبدأ اللعب …" : netBadge())}</p></div>
+    ${net.status === "open" ? `<div class="lobby-voice">${commBar(false)}<span class="net-note">تكلّم مع أصدقائك</span></div>` : ""}
     ${host ? `<div class="btn-row"><button class="btn" data-act="share">أرسل الدعوة</button><button class="btn" data-act="copy">انسخ الرابط</button></div>` : ""}
     <div class="opts panel">
       ${host ? `<div class="seg" role="group" aria-label="نوع اللعب">
