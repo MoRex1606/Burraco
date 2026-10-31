@@ -844,7 +844,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v11 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v12 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
@@ -916,7 +916,7 @@ function renderTable() {
         ${st.discard.length ? st.discard.map(c => cardHTML(c)).join("") : '<div class="slot"></div>'}</div>
     </button>
     <div class="melds panel">${meldsHTML(st, them, "الخصم")}<hr>${meldsHTML(st, us, "نحن")}</div>
-    <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${st.current === ui.me ? timerHTML(st) + " " : ""}${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
+    <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st)} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
     <div class="actions">
       <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
       ${canPlay && st.mustMeld
