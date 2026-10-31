@@ -82,14 +82,22 @@ button { font: inherit; color: inherit; }
 .slot { width: var(--cw); height: calc(var(--cw) * 1.42); border: 1px dashed rgba(255,255,255,.3); border-radius: 6px; box-sizing: border-box; }
 
 /* Kopf */
-.top { display: flex; align-items: center; gap: 8px; }
+/* Punkte genau in der Mitte, links und rechts gleich breite Spalten; Kästen so hoch wie الهدف/الفتوح. */
+body:has(#app.table) { margin-top: 0; }
+#app.table { padding-top: max(2px, env(safe-area-inset-top, 0px)); }
+.top { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 6px; }
+.top-side { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.top .comm-btn { width: 30px; height: 30px; }
+.top .comm-btn svg { width: 17px; height: 17px; }
+.top-side.end { justify-content: flex-end; }
 .icon-btn { background: none; border: 0; color: var(--brass); font-size: 20px; padding: 4px 8px; cursor: pointer; }
-.scores { flex: 1; display: flex; justify-content: center; gap: 8px; }
-.score { padding: 4px 12px; text-align: center; min-width: 64px; }
-.score small { display: block; font-size: 11px; color: var(--ink-dim); }
-.score b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.scores { display: flex; justify-content: center; gap: 8px; }
+.score { height: 30px; box-sizing: border-box; padding: 0 10px; text-align: center; min-width: 56px;
+  display: flex; flex-direction: column; justify-content: center; line-height: 1; border-radius: 8px; }
+.score small { display: block; font-size: 10px; color: var(--ink-dim); }
+.score b { font-size: 15px; font-variant-numeric: tabular-nums; margin-top: 1px; }
 .score.us b { color: var(--brass); }
-.goal { font-size: 11px; color: var(--ink-dim); }
+.goal { font-size: 11px; line-height: 15px; color: var(--ink-dim); white-space: nowrap; }
 
 /* Sitzplätze */
 .seat { display: flex; flex-direction: column; align-items: center; gap: 4px; --cw: 22px; }
@@ -204,8 +212,7 @@ button { font: inherit; color: inherit; }
     grid-template-areas: "top melds" "board melds" "discard melds" "controls melds" "hand hand";
   }
   .top { grid-area: top; }
-  .score { padding: 2px 10px; }
-  .score b { font-size: 16px; }
+  .score { padding: 0 10px; }
   .board { grid-area: board; display: flex; align-items: center; justify-content: center; gap: 18px; }
   .seat { --cw: 18px; }
   .pile { --cw: 30px; }
@@ -919,7 +926,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v28 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v29 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -967,15 +974,15 @@ function renderTable() {
   const meldScroll = [".melds", ".mside.them", ".mside.us"].map(q => app.querySelector(q)?.scrollTop ?? 0);
 
   let html = `<div class="top">
-      <button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button>
+      <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button></div>
       <div class="scores">
         <div class="score panel us"><small>نحن</small><b>${st.scores[us]}</b></div>
         <div class="score panel"><small>الخصم</small><b>${st.scores[them]}</b></div>
       </div>
-      ${commBar(true)}
+      <div class="top-side end">${commBar(true)}
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
         : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
-      <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button>
+      <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button></div>
     </div>
     <div class="board">${seatHTML(st, rel(four ? 2 : 1), false)}
     <div class="mid">
