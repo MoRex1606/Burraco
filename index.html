@@ -220,7 +220,14 @@ body:has(#app.table) { margin-top: 0; }
 .board { display: contents; }
 /* Hochformat: Auslagen des Gegners oben, كومة الحرق genau dazwischen, eigene Auslagen unten; jede Hälfte scrollt für sich. */
 .melds { overflow: hidden; }
-.mside { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.mside { flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.melds h3.wm {
+  position: absolute; inset: 0; z-index: 0; margin: 0; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font: 700 40px var(--f-arabic-display); color: rgba(220,180,98,.16);
+}
+.melds h3.wm span { font: 600 13px var(--f-body); color: rgba(220,180,98,.3); }
+.mscroll { position: relative; z-index: 1; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .melds > .discard-row { flex: none; }
 /* Statuszeile links neben den Tasten (Tasten rechts). */
 .controls { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; }
@@ -271,12 +278,12 @@ body:has(#app.table) { margin-top: 0; }
   .discard-row { grid-area: discard; }
   .melds { display: contents; }
   .melds hr { display: none; }
-  .mside { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; padding: 10px 12px;
+  .mside { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; padding: 10px 12px;
     background: var(--panel); border: 1px solid var(--brass-dim); border-radius: 12px; }
   .mside.them { grid-area: them; }
   .mside.us { grid-area: us; }
   .meld { --cw: var(--meld-cw, 44px); }
-  .melds h3 { font-size: 15px; }
+  .melds h3.wm { font-size: 56px; }
   .controls { grid-area: controls; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
   .controls .status { flex: none; }
   .hand { grid-area: hand; padding: 18px 0 4px; --cw: 60px; }
@@ -955,7 +962,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v36 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v37 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -976,8 +983,9 @@ function meldsHTML(st, t, title) {
     return `<button class="meld ${myTurn ? "target" : ""}" data-act="add" data-meld="${m.id}" ${t === teamOf(ui.me) ? "" : 'tabindex="-1"'}>
       <div class="cards">${m.cards.map(c => cardHTML(c)).join("")}</div>${tag}</button>`;
   }).join("");
-  return `<h3>${title}${st.tookPot[t] ? "<span>أخذ المور</span>" : ""}</h3>
-    ${items ? `<div class="meld-row">${items}</div>` : '<div class="empty">لا يوجد تنزيل بعد</div>'}`;
+  // Teamname groß und blass im Hintergrund der Hälfte; Auslagen liegen darüber und dürfen ihn verdecken.
+  return `<h3 class="wm" aria-label="${title}">${title}${st.tookPot[t] ? "<span>أخذ المور</span>" : ""}</h3>
+    <div class="mscroll">${items ? `<div class="meld-row">${items}</div>` : ""}</div>`;
 }
 function isHumanTurn() {
   const st = ui.st;
@@ -1002,7 +1010,7 @@ function renderTable() {
   const canPlay = isHumanTurn() && st.phase === "play";
   const top = st.discard[st.discard.length - 1];
   const hand = st.hands[ui.me];
-  const meldScroll = [".melds", ".mside.them", ".mside.us"].map(q => app.querySelector(q)?.scrollTop ?? 0);
+  const meldScroll = [".mside.them .mscroll", ".mside.us .mscroll"].map(q => app.querySelector(q)?.scrollTop ?? 0);
 
   let html = `<div class="top">
       <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button></div>
@@ -1049,12 +1057,12 @@ function renderTable() {
   if (ui.confirmQuit) html += quitConfirmHTML();
   app.innerHTML = html;
   fitMelds();
-  [".melds", ".mside.them", ".mside.us"].forEach((q, i) => { const el = app.querySelector(q); if (el) el.scrollTop = meldScroll[i]; });
+  [".mside.them .mscroll", ".mside.us .mscroll"].forEach((q, i) => { const el = app.querySelector(q); if (el) el.scrollTop = meldScroll[i]; });
 }
 // Alle Auslagen beider Seiten sollen im Kasten sichtbar sein: Karten so weit verkleinern, bis nichts mehr überläuft.
 const MELD_CW_MIN = 16;
 function fitMelds() {
-  const boxes = TABLET.matches ? [".mside.them", ".mside.us"] : [".melds"];
+  const boxes = [".mside.them .mscroll", ".mside.us .mscroll"];
   const base = TABLET.matches ? 44 : 38;
   for (const q of boxes) {
     const el = app.querySelector(q);
