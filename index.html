@@ -877,8 +877,8 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v15 · ${storageInfo()}</p>
-    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v16 · ${storageInfo()}</p>
+    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر.</p>
   </div>`;
 }
 function seatHTML(st, p, compact) {
