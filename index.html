@@ -259,7 +259,7 @@ const BASE_RULES = {
   fullRunBonus: 400, // volle Reihe A-2-…-K-A ohne Joker
   setCleanBonus: 300, setDirtyBonus: 150, // Projekt aus einem Satz (auch aus 2ern)
   goOutBonus: 100,
-  noPotPenalty: 100, noProjectPenalty: 200,
+  noPotPenalty: 100, noProjectPenalty: 0, // Runde ohne Projekte: keine −200, normal werten
   openingThreshold: 0, openingMinimum: 0, // Mindestwert der ersten Auslage: bei uns aus
   target: 3510,
   // Bedingung zum Beenden (vor Spielbeginn wählbar): Projekte ohne Joker ("200") und Projekte insgesamt.
@@ -535,7 +535,7 @@ function endRound(st, wentOut) {
   const res = [0, 1].map(t => {
     const s = { meld: 0, bonus: 0, out: 0, hand: 0, noPot: 0, noProject: 0, returned: st.penalties[t] };
     if (!st.tookPot[t]) s.noPot = r.noPotPenalty; // −100 ohne 100er, unabhängig von Projekten
-    if (!anyProject) { s.noProject = r.noProjectPenalty; return s; }
+    if (!anyProject && r.noProjectPenalty) { s.noProject = r.noProjectPenalty; return s; }
     for (const m of st.melds[t]) { s.meld += meldPoints(m); s.bonus += meldBonus(m, r); }
     st.players.forEach((_, p) => { if (teamOf(p) === t) s.hand += st.hands[p].reduce((a, c) => a + cardValue(c), 0); });
     if (wentOut === t) s.out = r.goOutBonus;
@@ -803,7 +803,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v7 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v8 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
@@ -904,7 +904,7 @@ function summaryHTML(st) {
       ${row("الختم", s => s.out)}
       ${row("أوراق باليد", s => -s.hand)}
       ${row("بدون 100", s => -s.noPot)}
-      ${row("بدون مشروع", s => -s.noProject)}
+      ${BASE_RULES.noProjectPenalty ? row("بدون مشروع", s => -s.noProject) : ""}
       ${st.rules.returnPenalty ? row("إرجاع كومة الحرق", s => -s.returned) : ""}
       <tr class="sum"><td>هذه الجولة</td><td>${res[0].total}</td><td>${res[1].total}</td></tr>
       <tr class="sum"><td>المجموع</td><td>${st.scores[us]}</td><td>${st.scores[them]}</td></tr>
