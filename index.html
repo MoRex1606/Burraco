@@ -115,15 +115,23 @@ body:has(#app.table) { margin-top: 0; }
 .seat.active small { color: #3a2c10; }
 
 .mid { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.piles { display: flex; gap: 12px; align-items: flex-end; }
+.piles { display: flex; gap: 26px; align-items: center; }
 .pile { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; padding: 0; cursor: pointer; --cw: 26px; }
 /* Ziehstapel nur minimal größer als die beiden 100er-Stapel (22px). */
 .pile:disabled { cursor: default; }
 .pile.ready .back, .pile.ready .card { box-shadow: 0 0 0 2px var(--brass), 0 0 14px rgba(220,180,98,.6); }
 .pile small { font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .stack { position: relative; }
-.stack .back:first-child { position: absolute; left: 1px; top: 1px; }
-.pots { display: flex; gap: 4px; --cw: 22px; }
+.stack .back:first-of-type { position: absolute; left: 1px; top: 1px; }
+.pots { display: flex; gap: 4px; --cw: 22px; position: relative; }
+/* Beschriftung direkt auf den Stapeln, gleicher Stil wie die Namen auf den Kartenrücken. */
+.pile-label {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1;
+  display: flex; flex-direction: column; align-items: center; white-space: nowrap; direction: rtl;
+  padding: 2px 6px; border-radius: 7px; background: rgba(8,20,14,.82); border: 1px solid var(--brass-dim);
+  box-shadow: 0 1px 4px rgba(0,0,0,.5); font-size: 11px; font-weight: 700; line-height: 1.15; color: var(--ink);
+}
+.pile-label small { font-size: 10px; font-weight: 400; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .pots .slot { border-radius: 3px; }
 
 /* Ablage als Fächer */
@@ -558,7 +566,7 @@ function removeFromHand(st, ids) {
 function takePot(st) {
   st.hands[st.current] = sortHand(st.pots.shift());
   st.tookPot[curTeam(st)] = true;
-  st.log += " " + st.players[st.current].name + ": أخذ الـ100.";
+  st.log += " " + st.players[st.current].name + ": أخذ المور.";
 }
 function takePotIfEmpty(st) {
   if (!st.hands[st.current].length && canTakePot(st, curTeam(st))) takePot(st);
@@ -933,7 +941,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v31 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v32 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -954,7 +962,7 @@ function meldsHTML(st, t, title) {
     return `<button class="meld ${myTurn ? "target" : ""}" data-act="add" data-meld="${m.id}" ${t === teamOf(ui.me) ? "" : 'tabindex="-1"'}>
       <div class="cards">${m.cards.map(c => cardHTML(c)).join("")}</div>${tag}</button>`;
   }).join("");
-  return `<h3>${title}${st.tookPot[t] ? "<span>أخذ الـ100</span>" : ""}</h3>
+  return `<h3>${title}${st.tookPot[t] ? "<span>أخذ المور</span>" : ""}</h3>
     ${items ? `<div class="meld-row">${items}</div>` : '<div class="empty">لا يوجد تنزيل بعد</div>'}`;
 }
 function isHumanTurn() {
@@ -998,8 +1006,8 @@ function renderTable() {
       ${four ? seatHTML(st, rel(3), true) : "<span></span>"}
       <div class="piles">
         <button class="pile ${canDraw && st.stock.length ? "ready" : ""}" data-act="draw" ${canDraw ? "" : "disabled"} aria-label="اسحب من الكومة">
-          ${st.stock.length ? `<div class="stack">${backs(2)}</div>` : '<div class="slot"></div>'}<small>السحب ${st.stock.length}</small></button>
-        <div class="pile" aria-label="كومتا الـ100"><div class="pots">${[0, 1].map(i => i < st.pots.length ? '<div class="back"></div>' : '<div class="slot"></div>').join("")}</div><small>الـ100</small></div>
+          <div class="stack">${st.stock.length ? backs(2) : '<div class="slot"></div>'}<span class="pile-label">السحب<small>${st.stock.length}</small></span></div></button>
+        <div class="pile" aria-label="كومتا المور"><div class="pots">${[0, 1].map(i => i < st.pots.length ? '<div class="back"></div>' : '<div class="slot"></div>').join("")}<span class="pile-label">المور</span></div></div>
       </div>
       ${four ? seatHTML(st, rel(1), true) : "<span></span>"}
     </div></div>
