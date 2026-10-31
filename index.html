@@ -90,6 +90,8 @@ body:has(#app.table) { margin-top: 0; }
 .top .comm-btn { width: 30px; height: 30px; }
 .top .comm-btn svg { width: 17px; height: 17px; }
 .top-side.end { justify-content: flex-end; }
+/* Hochformat: Punkte stehen nur noch auf der Tafel; der obere Mitspieler rückt in die frei gewordene Mitte der Kopfzeile. */
+.board > .seat:first-child { margin-top: calc(-1 * var(--top-h, 42px)); position: relative; z-index: 1; }
 .icon-btn { background: none; border: 0; color: var(--brass); font-size: 20px; padding: 4px 8px; cursor: pointer; }
 .scores { display: flex; justify-content: center; gap: 8px; }
 .score { height: 30px; box-sizing: border-box; padding: 0 10px; text-align: center; min-width: 56px;
@@ -239,6 +241,7 @@ body:has(#app.table) { margin-top: 0; }
 
 /* Querformat (Handy quer): Tisch links/rechts aufteilen, Hand über die ganze Breite unten. */
 @media (orientation: landscape) and (max-height: 560px) {
+  .board > .seat:first-child { margin-top: 0; }
   #app { max-width: 1000px; overflow-y: auto; padding-block: 4px; gap: 6px; }
   #app.table {
     display: grid; gap: 4px 14px;
@@ -269,6 +272,7 @@ body:has(#app.table) { margin-top: 0; }
 
 /* Tablet quer: Auslagen links und rechts in voller Höhe, Tisch in der Mitte, Hand unten. */
 @media (orientation: landscape) and (min-height: 561px) and (min-width: 900px) {
+  .board > .seat:first-child { margin-top: 0; }
   #app { max-width: 1500px; }
   #app.table {
     display: grid; gap: 8px 16px;
@@ -968,7 +972,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v38 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v39 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1020,10 +1024,7 @@ function renderTable() {
 
   let html = `<div class="top">
       <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button></div>
-      <div class="scores">
-        <div class="score panel us"><small>نحن</small><b>${st.scores[us]}</b></div>
-        <div class="score panel"><small>الخصم</small><b>${st.scores[them]}</b></div>
-      </div>
+      <span class="top-mid"></span>
       <div class="top-side end">${commBar(true)}
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
         : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
