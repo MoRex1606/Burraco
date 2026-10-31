@@ -753,6 +753,7 @@ const TABLET = window.matchMedia("(orientation: landscape) and (min-height: 561p
 function render() {
   app.classList.toggle("table", ui.screen === "table");
   if (ui.st && !(net && !net.host)) syncTimer(ui.st);
+  if (ui.st && net && !net.host) sendHandOrder();
   // Während eine Karte gezogen wird, nicht neu zeichnen (Computer-Züge laufen weiter).
   if (net && net.host) hostBroadcast();
   saveSolo();
@@ -871,7 +872,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v13 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v14 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
@@ -1248,6 +1249,14 @@ function hostOnData(conn, d) {
     hostSay(seat, d.k, d.i);
     return;
   }
+  if (d.t === "order") {
+    const seat = hostPlayer(conn.cid);
+    if (!ui.st || seat < 0 || !Array.isArray(d.ids)) return;
+    const hand = ui.st.hands[seat], byId = new Map(hand.map(c => [c.id, c]));
+    if (d.ids.length !== hand.length || new Set(d.ids).size !== hand.length || !d.ids.every(id => byId.has(id))) return;
+    ui.st.hands[seat] = d.ids.map(id => byId.get(id));
+    return;
+  }
   if (d.t === "act") {
     const st = ui.st, seat = hostPlayer(conn.cid);
     if (!st || seat < 0) return;
@@ -1356,7 +1365,7 @@ function clientConnect(me) {
   me.conn = conn;
   conn.on("open", () => {
     if (net !== me || me.conn !== conn) return;
-    me.status = "open"; me.noRoom = false; me.heard = Date.now();
+    me.status = "open"; me.noRoom = false; me.heard = Date.now(); me.order = null;
     conn.send({ t: "hello", name: ui.name, cid: clientId() });
     render();
   });
@@ -1406,6 +1415,13 @@ function clientOnData(me, d) {
   else if (d.t === "voice" && Array.isArray(d.ids)) voiceSetIds(d.ids);
   else if (d.t === "said" && ui.st) sayShow(Number(d.seat), d.k, Number(d.i));
   else if (d.t === "full") { localStorage.removeItem("brk-guest"); me.full = true; netLeave(); ui.notice = String(d.msg); ui.screen = "start"; ui.st = null; render(); }
+}
+// Der Gast schickt dem Gastgeber seine Sortierung, damit „erste Karte von rechts“ beim Zeitablauf stimmt.
+function sendHandOrder() {
+  const ids = ui.st.hands[ui.me].map(c => c.id), key = ids.join(",");
+  if (net.order === key || !net.conn || !net.conn.open) return;
+  net.order = key;
+  net.conn.send({ t: "order", ids });
 }
 function netSend(msg) {
   if (net && net.conn && net.conn.open) net.conn.send(msg);
@@ -1759,7 +1775,8 @@ function timerHTML(st) {
   const s = timerLeft(st);
   return s === null ? "" : `<span class="timer ${s <= 10 ? "low" : ""}">⏱ ${s}</span>`;
 }
-// Zeit abgelaufen: nach Phase 1 vom Stapel ziehen, nach Phase 2 die Karte abwerfen, die der Computer wählen würde.
+// Zeit abgelaufen: nach Phase 1 vom Stapel ziehen, nach Phase 2 die erste Karte von rechts abwerfen
+// (so wie der Spieler seine Hand auf dem Bildschirm sieht; die Hand wird links nach rechts gezeigt).
 function timeoutMove(st) {
   if (st.phase === "draw") {
     try { drawStock(st); } catch (e) { takeDiscard(st); }
@@ -1768,12 +1785,9 @@ function timeoutMove(st) {
   }
   if (st.mustMeld) returnDiscard(st);
   const name = st.players[st.current].name;
-  try { discardCard(st, aiChooseDiscard(st)); }
-  catch (e) {
-    let ok = false;
-    for (const c of st.hands[st.current]) { try { discardCard(st, c.id); ok = true; break; } catch (e2) {} }
-    if (!ok) nextTurn(st);
-  }
+  let ok = false;
+  for (const c of st.hands[st.current].slice().reverse()) { try { discardCard(st, c.id); ok = true; break; } catch (e) {} }
+  if (!ok) nextTurn(st);
   st.log = name + ": انتهى الوقت. " + st.log;
 }
 setInterval(() => {
