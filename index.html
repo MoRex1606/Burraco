@@ -93,6 +93,9 @@ body:has(#app.table) { margin-top: 0; }
 /* Hochformat: Punkte stehen nur noch auf der Tafel; der obere Mitspieler rückt in die frei gewordene Mitte der Kopfzeile. */
 .board > .seat:first-child { margin-top: calc(-1 * var(--top-h, 42px)); position: relative; z-index: 1; }
 .icon-btn { background: none; border: 0; color: var(--brass); font-size: 20px; padding: 4px 8px; cursor: pointer; }
+/* Großes Schließen-Kreuz: 44×44 Tippfläche (Apple-Empfehlung), Kreuz selbst deutlich größer. */
+.top .icon-btn { width: 44px; height: 44px; margin: 0 -8px -14px 0; padding: 0; display: grid; place-items: center; font-size: 30px; line-height: 1; border-radius: 50%; }
+.top .icon-btn:active { background: rgba(220,180,98,.15); }
 .scores { display: flex; justify-content: center; gap: 8px; }
 .score { height: 30px; box-sizing: border-box; padding: 0 10px; text-align: center; min-width: 56px;
   display: flex; flex-direction: column; justify-content: center; line-height: 1; border-radius: 8px; }
@@ -972,7 +975,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v39 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v40 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
