@@ -233,6 +233,10 @@ button { font: inherit; color: inherit; }
 .net-note { font-size: 13px; color: var(--ink-dim); margin: 0; max-width: 34ch; }
 .net-note.err { color: var(--warn); font-weight: 600; }
 .seat.offline .name { opacity: .5; text-decoration: line-through; }
+.timer { display: inline-block; min-width: 2.6em; margin-inline-start: 6px; padding: 0 6px; border-radius: 99px; font-weight: 700;
+  font-variant-numeric: tabular-nums; background: rgba(0,0,0,.35); color: var(--ink); direction: ltr; }
+.timer.low { background: var(--warn); color: #fff; animation: tpulse 1s infinite; }
+@keyframes tpulse { 50% { opacity: .6; } }
 .net-badge { font-size: 11px; color: var(--warn); }
 
 /* Sprechen und Schnellnachrichten */
@@ -437,6 +441,7 @@ function startRound(st) {
   st.takenIds = null;
   st.penalties = [0, 0];
   st.lastRound = null;
+  st.timerKey = null; st.deadline = null;
   st.log = st.players[st.current].name + ": يبدأ اللعب.";
 }
 const curTeam = st => teamOf(st.current);
@@ -721,6 +726,7 @@ const backs = n => Array.from({ length: n }, () => '<div class="back"></div>').j
 const LANDSCAPE = window.matchMedia("(orientation: landscape) and (max-height: 560px)");
 function render() {
   app.classList.toggle("table", ui.screen === "table");
+  if (ui.st && !(net && !net.host)) syncTimer(ui.st);
   // Während eine Karte gezogen wird, nicht neu zeichnen (Computer-Züge laufen weiter).
   if (net && net.host) hostBroadcast();
   saveSolo();
@@ -838,14 +844,14 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v10 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v11 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
 function seatHTML(st, p, compact) {
   const active = st.current === p && (st.phase === "draw" || st.phase === "play");
   const n = st.hands[p].length, pl = st.players[p];
-  return `<div class="seat ${active ? "active" : ""} ${pl.offline ? "offline" : ""}">${sayHTML(p)}<span class="name">${esc(pl.name)}${pl.bot ? " 🤖" : ""}</span>
+  return `<div class="seat ${active ? "active" : ""} ${pl.offline ? "offline" : ""}">${sayHTML(p)}<span class="name">${esc(pl.name)}${pl.bot ? " 🤖" : ""}${active ? timerHTML(st) : ""}</span>
     <div class="fan">${backs(Math.min(n, compact ? 4 : 8))}</div><small>${n} أوراق</small></div>`;
 }
 function meldsHTML(st, t, title) {
@@ -910,7 +916,7 @@ function renderTable() {
         ${st.discard.length ? st.discard.map(c => cardHTML(c)).join("") : '<div class="slot"></div>'}</div>
     </button>
     <div class="melds panel">${meldsHTML(st, them, "الخصم")}<hr>${meldsHTML(st, us, "نحن")}</div>
-    <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
+    <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${st.current === ui.me ? timerHTML(st) + " " : ""}${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
     <div class="actions">
       <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
       ${canPlay && st.mustMeld
@@ -1176,7 +1182,7 @@ function hostOpen() {
     const now = Date.now();
     for (const conn of me.conns.values()) {
       if (now - (conn.heard || now) > 15000) { conn.close(); hostOnClose(conn); continue; }
-      if (conn.open) conn.send({ t: "ping" });
+      if (conn.open) conn.send({ t: "ping", now: Date.now() });
     }
     voiceSync();
   }, 5000);
@@ -1258,7 +1264,7 @@ function hostBroadcast() {
     const json = JSON.stringify(msg);
     if (net.sent.get(conn) === json) continue;
     net.sent.set(conn, json);
-    conn.send(msg);
+    conn.send(Object.assign(msg, { now: Date.now() }));
   }
   hostVoiceList();
   try {
@@ -1354,6 +1360,7 @@ document.addEventListener("visibilitychange", () => {
 function clientOnData(me, d) {
   me.heard = Date.now();
   if (!d || typeof d !== "object") return;
+  if (typeof d.now === "number") me.skew = d.now - Date.now();
   if (d.t === "lobby" || d.t === "state") localStorage.setItem("brk-guest", me.code);
   if (d.t === "lobby") { me.lobby = d; ui.st = null; ui.screen = "lobby"; render(); }
   else if (d.t === "state") {
@@ -1703,6 +1710,66 @@ function onlineClick(act, el) {
   }
   return false;
 }
+
+// ----- Zug-Timer -----
+// Jeder Mensch hat 30 Sekunden zum Ziehen (Stapel oder Ablage) und danach wieder 30 Sekunden bis zum Abwerfen.
+// Die Frist (st.deadline) steht im Spielstand: Der Gastgeber (bzw. das Solo-Spiel) setzt sie, prüft sie und
+// spielt bei Ablauf automatisch. Sie wird mitgespeichert und übersteht so ein Neuladen.
+const TURN_MS = 30000;
+const timerActive = st => (st.phase === "draw" || st.phase === "play") && st.players[st.current].human && !st.players[st.current].bot;
+function syncTimer(st) {
+  const key = timerActive(st) ? [st.dealer, st.turn, st.current, st.phase].join(":") : null;
+  if (st.timerKey === key) return;
+  st.timerKey = key;
+  st.deadline = key ? Date.now() + TURN_MS : null;
+}
+// Gäste rechnen mit der Uhr des Gastgebers (Abweichung kommt mit jeder Nachricht).
+const hostNow = () => Date.now() + (net && !net.host && net.skew || 0);
+function timerLeft(st) {
+  return st && st.deadline && timerActive(st) ? Math.max(0, Math.ceil((st.deadline - hostNow()) / 1000)) : null;
+}
+function timerHTML(st) {
+  const s = timerLeft(st);
+  return s === null ? "" : `<span class="timer ${s <= 10 ? "low" : ""}">⏱ ${s}</span>`;
+}
+// Zeit abgelaufen: nach Phase 1 vom Stapel ziehen, nach Phase 2 die Karte abwerfen, die der Computer wählen würde.
+function timeoutMove(st) {
+  if (st.phase === "draw") {
+    try { drawStock(st); } catch (e) { takeDiscard(st); }
+    st.log += " (انتهى الوقت)";
+    return;
+  }
+  if (st.mustMeld) returnDiscard(st);
+  const name = st.players[st.current].name;
+  try { discardCard(st, aiChooseDiscard(st)); }
+  catch (e) {
+    let ok = false;
+    for (const c of st.hands[st.current]) { try { discardCard(st, c.id); ok = true; break; } catch (e2) {} }
+    if (!ok) nextTurn(st);
+  }
+  st.log = name + ": انتهى الوقت. " + st.log;
+}
+setInterval(() => {
+  const st = ui.st;
+  if (!st || ui.screen !== "table") return;
+  if (!(net && !net.host) && !ui.thinking && st.deadline && timerActive(st) && Date.now() >= st.deadline) {
+    try { timeoutMove(st); } catch (e) { if (!(e instanceof GameError)) console.error(e); st.deadline = null; }
+    if (st.current === ui.me && st.hands[ui.me]) {
+      const ids = new Set(st.hands[ui.me].map(c => c.id));
+      ui.selected = new Set([...ui.selected].filter(id => ids.has(id)));
+    }
+    ui.msg = null;
+    render();
+    runComputer();
+    return;
+  }
+  const s = timerLeft(st);
+  app.querySelectorAll(".timer").forEach(el => {
+    if (s === null) { el.remove(); return; }
+    el.textContent = "⏱ " + s;
+    el.classList.toggle("low", s <= 10);
+  });
+}, 250);
 
 // ----- Nach dem Neuladen weiterspielen -----
 function saveSolo() {
