@@ -334,6 +334,8 @@ const BASE_RULES = {
   // Bedingung zum Beenden (vor Spielbeginn wählbar): wie viele der zwei Projekte ohne Joker sein müssen.
   // 1 = 200 + 100 (eins ohne, eins mit genau einem Joker; 2× ohne geht auch), 2 = 2×200 (beide ohne Joker).
   closeClean: 1,
+  // Spielgeschwindigkeit (vor Spielbeginn wählbar): Sekunden pro Zugphase. 30 = عادي, 20 = سريع.
+  turnSecs: 30,
   setRanks: [1, 2, 3], // Sätze (gleiche Werte) nur aus A, 2 und 3
   returnPenalty: 0, // Strafe fürs Zurücklegen der Ablage (vorerst aus)
 };
@@ -490,7 +492,10 @@ function meldsAllowClose(melds, r) {
 const canClose = (st, t) => meldsAllowClose(st.melds[t], st.rules);
 const closeText = c => c === 2 ? "مشروعين 200 (بدون جوكر)" : "مشروع 200 ومشروع 100";
 const closeShort = c => c === 2 ? "2×200" : "200+100";
-const closeRules = () => Object.assign({}, BASE_RULES, { closeClean: ui.close === 2 ? 2 : 1 });
+const speedOf = v => v === 2 ? 2 : 1; // 1 = عادي (30 s), 2 = سريع (20 s)
+const speedSecs = v => speedOf(v) === 2 ? 20 : 30;
+const speedText = v => speedOf(v) === 2 ? "سريع (20 ثانية)" : "عادي (30 ثانية)";
+const closeRules = () => Object.assign({}, BASE_RULES, { closeClean: ui.close === 2 ? 2 : 1, turnSecs: speedSecs(ui.speed) });
 const canTakePot = (st, t) => !st.tookPot[t] && st.pots.length > 0;
 const needsOpening = (st, t) => st.scores[t] >= st.rules.openingThreshold && !st.opened[t];
 
@@ -770,7 +775,7 @@ function aiChooseDiscard(st) {
 
 // ---------- Oberfläche ----------
 const app = document.getElementById("app");
-const ui = { screen: "start", mode: "teams", close: 1, st: null, me: 0, selected: new Set(), msg: null, thinking: false, gen: 0,
+const ui = { screen: "start", mode: "teams", close: 1, speed: 1, st: null, me: 0, selected: new Set(), msg: null, thinking: false, gen: 0,
   name: localStorage.getItem("brk-name") || "", code: "" };
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
@@ -897,7 +902,11 @@ function renderStart() {
         <button id="close-1" class="${ui.close === 1 ? "on" : ""}" data-act="close" data-v="1" dir="ltr">200 + 100</button>
         <button id="close-2" class="${ui.close === 2 ? "on" : ""}" data-act="close" data-v="2" dir="ltr">2×200</button>
       </div>
-      <p class="goal-note">للختم: ${closeText(ui.close)} · الهدف ${BASE_RULES.target} نقطة (كل سطر ÷ 10)</p>
+      <div class="seg" role="group" aria-label="سرعة اللعب">
+        <button id="speed-1" class="${speedOf(ui.speed) === 1 ? "on" : ""}" data-act="speed" data-v="1">عادي</button>
+        <button id="speed-2" class="${speedOf(ui.speed) === 2 ? "on" : ""}" data-act="speed" data-v="2">سريع</button>
+      </div>
+      <p class="goal-note">للختم: ${closeText(ui.close)} · السرعة: ${speedText(ui.speed)} · الهدف ${BASE_RULES.target} نقطة (كل سطر ÷ 10)</p>
     </div>
     <div class="btn-col">
       <button class="btn primary" data-act="start">العب ضد الكمبيوتر</button>
@@ -908,8 +917,8 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v25 · ${storageInfo()}</p>
-    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200.</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v26 · ${storageInfo()}</p>
+    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
 function seatHTML(st, p, compact) {
@@ -1129,6 +1138,7 @@ app.addEventListener("click", e => {
   const act = el.dataset.act;
   if (act === "mode") { ui.mode = el.dataset.v; return render(); }
   if (act === "close") { ui.close = Number(el.dataset.v); return render(); }
+  if (act === "speed") { ui.speed = speedOf(Number(el.dataset.v)); return render(); }
   if (act === "start") return startGame();
   if (act === "sheet") { ui.sheet = true; return render(); }
   if (act === "sheetclose") { if (e.target === el || el.tagName === "BUTTON") { ui.sheet = false; render(); } return; }
@@ -1252,7 +1262,7 @@ function hostRoom(saved) {
     pick: null, tries: 0,
   };
   if (saved) {
-    ui.mode = saved.mode; ui.close = saved.close === 2 ? 2 : 1; ui.st = migrateState(saved.st); ui.me = saved.me || 0;
+    ui.mode = saved.mode; ui.close = saved.close === 2 ? 2 : 1; ui.speed = speedOf(saved.speed); ui.st = migrateState(saved.st); ui.me = saved.me || 0;
     if (ui.st) ui.st.players.forEach(p => { if (p.cid && p.cid !== "host") p.offline = true; });
     net.seats.forEach(s => { if (s && s.cid !== "host") s.online = false; });
   }
@@ -1371,7 +1381,7 @@ function hostBroadcast() {
   for (const conn of net.conns.values()) {
     if (!conn.open) continue;
     let msg;
-    if (lobby) msg = { t: "lobby", code: net.code, mode: ui.mode, close: ui.close,
+    if (lobby) msg = { t: "lobby", code: net.code, mode: ui.mode, close: ui.close, speed: ui.speed,
       seats: net.seats.map(s => s && { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, host: s.cid === "host", you: s.cid === conn.cid }) };
     else { const seat = hostPlayer(conn.cid); msg = { t: "state", seat, st: redact(ui.st, seat) }; }
     const json = JSON.stringify(msg);
@@ -1382,7 +1392,7 @@ function hostBroadcast() {
   hostVoiceList();
   try {
     localStorage.setItem("brk-host", JSON.stringify({ code: net.code, seats: net.seats.map(s => s && { name: s.name, cid: s.cid }),
-      mode: ui.mode, close: ui.close, st: ui.st, me: ui.me }));
+      mode: ui.mode, close: ui.close, speed: ui.speed, st: ui.st, me: ui.me }));
   } catch (e) {}
 }
 function hostSetMode(mode) {
@@ -1764,7 +1774,7 @@ function renderLobby() {
       <button class="btn" data-act="quit">رجوع</button></div>`;
     return;
   }
-  const L = host ? { code: net.code, mode: ui.mode, close: ui.close, seats: net.seats.map(s => s && { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, host: s.cid === "host", you: s.cid === "host" }) } : net.lobby;
+  const L = host ? { code: net.code, mode: ui.mode, close: ui.close, speed: ui.speed, seats: net.seats.map(s => s && { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, host: s.cid === "host", you: s.cid === "host" }) } : net.lobby;
   const people = L.seats.filter(Boolean).length;
   app.innerHTML = `<div class="start">
     <div><p class="sub">كود الغرفة</p><p class="room-code">${esc(L.code)}</p>
@@ -1778,8 +1788,11 @@ function renderLobby() {
       <div class="seg" role="group" aria-label="شرط الختم">
         <button class="${L.close === 1 ? "on" : ""}" data-act="lclose" data-v="1" dir="ltr">200 + 100</button>
         <button class="${L.close === 2 ? "on" : ""}" data-act="lclose" data-v="2" dir="ltr">2×200</button></div>
-      <p class="goal-note">للختم: ${closeText(L.close)}</p>`
-      : `<p class="goal-note">${L.mode === "teams" ? "٢ ضد ٢" : "١ ضد ١"} · للختم: ${closeText(L.close === 2 ? 2 : 1)}</p>`}
+      <div class="seg" role="group" aria-label="سرعة اللعب">
+        <button class="${speedOf(L.speed) === 1 ? "on" : ""}" data-act="lspeed" data-v="1">عادي</button>
+        <button class="${speedOf(L.speed) === 2 ? "on" : ""}" data-act="lspeed" data-v="2">سريع</button></div>
+      <p class="goal-note">للختم: ${closeText(L.close)} · السرعة: ${speedText(L.speed)}</p>`
+      : `<p class="goal-note">${L.mode === "teams" ? "٢ ضد ٢" : "١ ضد ١"} · للختم: ${closeText(L.close === 2 ? 2 : 1)} · السرعة: ${speedText(L.speed)}</p>`}
       ${lobbySeatsHTML(L.seats, host)}
       ${host ? `<p class="net-note">${L.seats.length === 4 ? "المقعد ١ و٣ فريق، و٢ و٤ فريق. " : ""}اضغط على مقعدين لتبديلهما. المقاعد الفارغة يلعبها الكمبيوتر.</p>` : ""}
       ${host ? nameField() : ""}
@@ -1813,6 +1826,7 @@ function onlineClick(act, el) {
   if (!net || !net.host) return false;
   if (act === "lmode") { hostSetMode(el.dataset.v); return render(); }
   if (act === "lclose") { ui.close = Number(el.dataset.v) === 2 ? 2 : 1; return render(); }
+  if (act === "lspeed") { ui.speed = speedOf(Number(el.dataset.v)); return render(); }
   if (act === "seat") {
     const i = Number(el.dataset.i);
     if (net.pick === null) net.pick = i;
@@ -1834,21 +1848,22 @@ function onlineClick(act, el) {
 }
 
 // ----- Zug-Timer -----
-// Jeder Mensch hat 30 Sekunden zum Ziehen (Stapel oder Ablage) und danach wieder 30 Sekunden bis zum Abwerfen.
+// Jeder Mensch hat 30 Sekunden (عادي) bzw. 20 Sekunden (سريع, st.rules.turnSecs) zum Ziehen (Stapel oder Ablage)
+// und danach wieder genauso lange bis zum Abwerfen.
 // Die Frist (st.deadline) steht im Spielstand: Der Gastgeber (bzw. das Solo-Spiel) setzt sie, prüft sie und
 // spielt bei Ablauf automatisch. Sie wird mitgespeichert und übersteht so ein Neuladen.
-const TURN_MS = 30000;
+const turnMs = st => (st.rules && st.rules.turnSecs || 30) * 1000; // alte Spielstände ohne Wert: 30 s
 const timerActive = st => (st.phase === "draw" || st.phase === "play") && st.players[st.current].human && !st.players[st.current].bot;
 function syncTimer(st) {
   const key = timerActive(st) ? [st.dealer, st.turn, st.current, st.phase].join(":") : null;
   if (st.timerKey === key) return;
   st.timerKey = key;
-  st.deadline = key ? Date.now() + TURN_MS : null;
+  st.deadline = key ? Date.now() + turnMs(st) : null;
 }
-// Wer eine neue Auslage legt oder an eine bestehende anlegt, bekommt 10 Sekunden dazu, höchstens bis 30 Sekunden.
+// Wer eine neue Auslage legt oder an eine bestehende anlegt, bekommt 10 Sekunden dazu, höchstens bis zur vollen Zugzeit (30 bzw. 20 Sekunden).
 const BONUS_MS = 10000;
 function addTurnTime(st) {
-  if (st.deadline && timerActive(st)) st.deadline = Math.min(st.deadline + BONUS_MS, Date.now() + TURN_MS);
+  if (st.deadline && timerActive(st)) st.deadline = Math.min(st.deadline + BONUS_MS, Date.now() + turnMs(st));
 }
 // Gäste rechnen mit der Uhr des Gastgebers (Abweichung kommt mit jeder Nachricht).
 const hostNow = () => Date.now() + (net && !net.host && net.skew || 0);
@@ -1899,7 +1914,7 @@ setInterval(() => {
 // ----- Nach dem Neuladen weiterspielen -----
 function saveSolo() {
   if (net || !ui.st || ui.screen !== "table") return;
-  try { localStorage.setItem("brk-solo", JSON.stringify({ st: ui.st, mode: ui.mode, close: ui.close, at: Date.now() })); }
+  try { localStorage.setItem("brk-solo", JSON.stringify({ st: ui.st, mode: ui.mode, close: ui.close, speed: ui.speed, at: Date.now() })); }
   catch (e) { ui.saveError = String(e && e.name || e); }
 }
 // Beim Verlassen der Seite noch einmal sicher speichern (iPhone schließt Safari sonst ohne Vorwarnung).
@@ -1934,7 +1949,7 @@ function restoreOnLoad() {
   let solo = null;
   try { solo = JSON.parse(localStorage.getItem("brk-solo")); } catch (e) {}
   if (solo && solo.st) {
-    ui.mode = solo.mode; ui.close = solo.close === 2 ? 2 : 1; ui.st = migrateState(solo.st); ui.me = 0;
+    ui.mode = solo.mode; ui.close = solo.close === 2 ? 2 : 1; ui.speed = speedOf(solo.speed); ui.st = migrateState(solo.st); ui.me = 0;
     ui.screen = "table";
     render();
     runComputer();
