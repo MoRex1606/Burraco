@@ -690,6 +690,7 @@ function render() {
   app.classList.toggle("table", ui.screen === "table");
   // Während eine Karte gezogen wird, nicht neu zeichnen (Computer-Züge laufen weiter).
   if (net && net.host) hostBroadcast();
+  saveSolo();
   if (drag && drag.active) { drag.pendingRender = true; return; }
   if (ui.screen === "start") return renderStart();
   if (ui.screen === "join") return renderJoin();
@@ -799,6 +800,7 @@ function renderStart() {
       <button class="btn primary" data-act="start">العب ضد الكمبيوتر</button>
       <button class="btn" data-act="host" ${ONLINE ? "" : "disabled"}>أنشئ غرفة أونلاين</button>
       <button class="btn" data-act="joinscreen" ${ONLINE ? "" : "disabled"}>انضم إلى غرفة الأصدقاء</button>
+      ${localStorage.getItem("brk-guest") && !savedHost() ? `<button class="btn" data-act="rejoin" ${ONLINE ? "" : "disabled"}>ارجع إلى الغرفة <bdi dir="ltr">${esc(localStorage.getItem("brk-guest"))}</bdi></button>` : ""}
       ${savedHost() ? `<button class="btn" data-act="resume" ${ONLINE ? "" : "disabled"}>تابِع الغرفة <bdi dir="ltr">${esc(savedHost().code)}</bdi></button>` : ""}
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
@@ -997,7 +999,7 @@ app.addEventListener("click", e => {
   if (act === "close") { ui.close = Number(el.dataset.v); return render(); }
   if (act === "start") return startGame();
   if (act === "quit") {
-    if (net && net.host && (!ui.st || ui.st.phase === "gameOver")) localStorage.removeItem("brk-host");
+    quitCleanup();
     netLeave(); ui.gen++; ui.thinking = false; ui.screen = "start"; ui.st = null; ui.me = 0; return render(); }
   if (act === "next") {
     if (net && !net.host) return;
@@ -1272,6 +1274,7 @@ document.addEventListener("visibilitychange", () => {
 function clientOnData(me, d) {
   me.heard = Date.now();
   if (!d || typeof d !== "object") return;
+  if (d.t === "lobby" || d.t === "state") localStorage.setItem("brk-guest", me.code);
   if (d.t === "lobby") { me.lobby = d; ui.st = null; ui.screen = "lobby"; render(); }
   else if (d.t === "state") {
     // Eigene Sortierung der Hand behalten.
@@ -1286,7 +1289,7 @@ function clientOnData(me, d) {
     render();
   }
   else if (d.t === "err") { ui.msg = String(d.msg); render(); }
-  else if (d.t === "full") { me.full = true; netLeave(); ui.notice = String(d.msg); ui.screen = "start"; ui.st = null; render(); }
+  else if (d.t === "full") { localStorage.removeItem("brk-guest"); me.full = true; netLeave(); ui.notice = String(d.msg); ui.screen = "start"; ui.st = null; render(); }
 }
 function netSend(msg) {
   if (net && net.conn && net.conn.open) net.conn.send(msg);
@@ -1373,6 +1376,7 @@ app.addEventListener("input", e => {
 });
 function onlineClick(act, el) {
   if (act === "host") { if (!ui.name) ui.name = ""; localStorage.removeItem("brk-host"); hostRoom(null); return; }
+  if (act === "rejoin") { ui.code = localStorage.getItem("brk-guest") || ""; if (!ui.name) { ui.screen = "join"; return render(); } return joinRoom(ui.code); }
   if (act === "resume") { const s = savedHost(); if (s) hostRoom(s); return; }
   if (act === "joinscreen") { ui.screen = "join"; ui.msg = null; ui.notice = null; return render(); }
   if (act === "join") {
@@ -1402,6 +1406,37 @@ function onlineClick(act, el) {
   }
   return false;
 }
+
+// ----- Nach dem Neuladen weiterspielen -----
+function saveSolo() {
+  if (net || !ui.st || ui.screen !== "table") return;
+  try { localStorage.setItem("brk-solo", JSON.stringify({ st: ui.st, mode: ui.mode, close: ui.close })); } catch (e) {}
+}
+function quitCleanup() {
+  localStorage.removeItem("brk-solo");
+  if (net && !net.host) localStorage.removeItem("brk-guest");
+  if (net && net.host) {
+    if (!ui.st || ui.st.phase === "gameOver") localStorage.removeItem("brk-host");
+    else { const s = savedHost(); if (s) { s.left = true; localStorage.setItem("brk-host", JSON.stringify(s)); } }
+  }
+}
+function restoreOnLoad() {
+  const guest = localStorage.getItem("brk-guest"), host = savedHost();
+  if (urlParams.get("room")) {
+    if (ONLINE && guest === ui.code && ui.name) joinRoom(ui.code);
+    return;
+  }
+  if (ONLINE && host && !host.left) return hostRoom(host);
+  let solo = null;
+  try { solo = JSON.parse(localStorage.getItem("brk-solo")); } catch (e) {}
+  if (solo && solo.st) {
+    ui.mode = solo.mode; ui.close = solo.close; ui.st = solo.st; ui.me = 0;
+    ui.screen = "table";
+    render();
+    runComputer();
+  }
+}
+restoreOnLoad();
 render();
 </script>
 </body>
