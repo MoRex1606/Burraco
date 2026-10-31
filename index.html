@@ -328,7 +328,9 @@ const BASE_RULES = {
   goOutBonus: 100,
   noPotPenalty: 100, noProjectPenalty: 0, // Runde ohne Projekte: keine −200, normal werten
   openingThreshold: 0, openingMinimum: 0, // Mindestwert der ersten Auslage: bei uns aus
-  target: 3510,
+  // Jede Zeile der Rundenübersicht wird durch 10 geteilt (kaufmännisch gerundet: 125 → 13, −125 → −13), die Summe ergibt sich aus den geteilten Zeilen.
+  scoreDivisor: 10,
+  target: 351, // notierte Punkte (entspricht 3510 ungeteilten Punkten)
   // Bedingung zum Beenden (vor Spielbeginn wählbar): wie viele der zwei Projekte ohne Joker sein müssen.
   // 1 = 200 + 100 (eins ohne, eins mit genau einem Joker; 2× ohne geht auch), 2 = 2×200 (beide ohne Joker).
   closeClean: 1,
@@ -607,6 +609,28 @@ function nextTurn(st) {
   // Regel (Deir-ez-Zor): Ist der Stapel leer, endet die Runde. Die 100er werden nicht zum Stapel.
   if (!st.stock.length) endRound(st, null);
 }
+// Rundensumme → notierte Punkte: durch scoreDivisor teilen, halbe Werte vom Nullpunkt weg runden.
+function recordPoints(total, r) {
+  const d = r.scoreDivisor || 1;
+  return Math.sign(total) * Math.round(Math.abs(total) / d);
+}
+// Jede Zeile der Rundenübersicht wird durch scoreDivisor geteilt; die Summe ist die Summe der geteilten Zeilen,
+// damit die Tabelle für die Spieler aufgeht.
+const ROW_KEYS = ["meld", "bonus", "out", "hand", "noPot", "noProject", "returned"];
+function scaleRow(s, r) {
+  ROW_KEYS.forEach(k => { s[k] = recordPoints(s[k], r); });
+  s.total = s.meld + s.bonus + s.out - s.hand - s.noPot - s.noProject - s.returned;
+}
+// Alte gespeicherte Spiele (vor v21, ungeteilte Punkte) auf notierte Punkte umstellen.
+function migrateState(st) {
+  if (!st || !st.rules || st.rules.scoreDivisor) return st;
+  const d = BASE_RULES.scoreDivisor;
+  st.rules.scoreDivisor = d;
+  st.scores = st.scores.map(x => recordPoints(x, st.rules));
+  st.rules.target = Math.round(st.rules.target / d);
+  if (st.lastRound) st.lastRound.teams.forEach(s => scaleRow(s, st.rules));
+  return st;
+}
 function endRound(st, wentOut) {
   const r = st.rules, anyProject = [0, 1].some(t => hasProject(st, t));
   const res = [0, 1].map(t => {
@@ -618,7 +642,7 @@ function endRound(st, wentOut) {
     if (wentOut === t) s.out = r.goOutBonus;
     return s;
   });
-  res.forEach(s => { s.total = s.meld + s.bonus + s.out - s.hand - s.noPot - s.noProject - s.returned; });
+  res.forEach(s => scaleRow(s, r));
   [0, 1].forEach(t => { st.scores[t] += res[t].total; });
   st.lastRound = { teams: res, wentOut };
   const best = Math.max(...st.scores), leaders = [0, 1].filter(t => st.scores[t] === best);
@@ -873,7 +897,7 @@ function renderStart() {
         <button id="close-1" class="${ui.close === 1 ? "on" : ""}" data-act="close" data-v="1" dir="ltr">200 + 100</button>
         <button id="close-2" class="${ui.close === 2 ? "on" : ""}" data-act="close" data-v="2" dir="ltr">2×200</button>
       </div>
-      <p class="goal-note">للختم: ${closeText(ui.close)} · الهدف ${BASE_RULES.target} نقطة</p>
+      <p class="goal-note">للختم: ${closeText(ui.close)} · الهدف ${BASE_RULES.target} نقطة (كل سطر ÷ 10)</p>
     </div>
     <div class="btn-col">
       <button class="btn primary" data-act="start">العب ضد الكمبيوتر</button>
@@ -884,7 +908,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v20 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v25 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200.</p>
   </div>`;
 }
@@ -939,7 +963,8 @@ function renderTable() {
       </div>
       ${commBar(true)}
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
-        : `<span class="goal">الهدف ${r.target}<br>الختم <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
+        : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
+      <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button>
     </div>
     <div class="board">${seatHTML(st, rel(four ? 2 : 1), false)}
     <div class="mid">
@@ -970,6 +995,7 @@ function renderTable() {
 
   if (st.phase === "roundOver" || st.phase === "gameOver") html += summaryHTML(st);
   html += chatPanelHTML();
+  if (ui.sheet) html += sheetHTML(st);
   if (ui.confirmQuit) html += quitConfirmHTML();
   app.innerHTML = html;
   fitMelds();
@@ -1007,9 +1033,9 @@ function summaryHTML(st) {
       <tr><th></th><th>نحن</th><th>الخصم</th></tr>
       ${row("أوراق على الطاولة", s => s.meld)}
       ${row("المشاريع", s => s.bonus)}
-      ${row("الختم", s => s.out)}
+      ${row("فتوح", s => s.out)}
       ${row("أوراق باليد", s => -s.hand)}
-      ${row("بدون 100", s => -s.noPot)}
+      ${row("مور", s => -s.noPot)}
       ${BASE_RULES.noProjectPenalty ? row("بدون مشروع", s => -s.noProject) : ""}
       ${st.rules.returnPenalty ? row("إرجاع كومة الحرق", s => -s.returned) : ""}
       <tr class="sum"><td>هذه الجولة</td><td>${res[0].total}</td><td>${res[1].total}</td></tr>
@@ -1104,6 +1130,8 @@ app.addEventListener("click", e => {
   if (act === "mode") { ui.mode = el.dataset.v; return render(); }
   if (act === "close") { ui.close = Number(el.dataset.v); return render(); }
   if (act === "start") return startGame();
+  if (act === "sheet") { ui.sheet = true; return render(); }
+  if (act === "sheetclose") { if (e.target === el || el.tagName === "BUTTON") { ui.sheet = false; render(); } return; }
   if (act === "askquit") return askQuit();
   if (act === "cancelquit") { ui.confirmQuit = null; return render(); }
   if (act === "quit" && ui.confirmQuit && Date.now() < ui.confirmQuit.until) return;
@@ -1140,6 +1168,21 @@ function askQuit() {
     render();
     if (Date.now() >= ui.confirmQuit.until) clearInterval(tick);
   }, 250);
+}
+// Punktetafel: Summe, Ziel und was noch fehlt (باقي = Ziel − Summe).
+function sheetHTML(st) {
+  const us = teamOf(ui.me), them = 1 - us, goal = st.rules.target;
+  const left = t => Math.max(0, goal - st.scores[t]);
+  return `<div class="overlay" data-act="sheetclose"><div class="summary">
+    <h2>لوحة التسجيل</h2>
+    <table>
+      <tr><th></th><th>نحن</th><th>الخصم</th></tr>
+      <tr><td>المجموع</td><td>${st.scores[us]}</td><td>${st.scores[them]}</td></tr>
+      <tr><td>الهدف</td><td>${goal}</td><td>${goal}</td></tr>
+      <tr class="sum"><td>باقي</td><td>${left(us)}</td><td>${left(them)}</td></tr>
+    </table>
+    <button class="btn primary" data-act="sheetclose">إغلاق</button>
+  </div></div>`;
 }
 function quitConfirmHTML() {
   const left = Math.max(0, Math.ceil((ui.confirmQuit.until - Date.now()) / 1000));
@@ -1209,7 +1252,7 @@ function hostRoom(saved) {
     pick: null, tries: 0,
   };
   if (saved) {
-    ui.mode = saved.mode; ui.close = saved.close === 2 ? 2 : 1; ui.st = saved.st; ui.me = saved.me || 0;
+    ui.mode = saved.mode; ui.close = saved.close === 2 ? 2 : 1; ui.st = migrateState(saved.st); ui.me = saved.me || 0;
     if (ui.st) ui.st.players.forEach(p => { if (p.cid && p.cid !== "host") p.offline = true; });
     net.seats.forEach(s => { if (s && s.cid !== "host") s.online = false; });
   }
@@ -1608,6 +1651,7 @@ const SVG = {
   spk: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
   spkOff: '<path d="M4 9h4l5-4v14l-5-4H4z"/>',
   chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10.5h.01M12 10.5h.01M16 10.5h.01" stroke-width="2.6"/>',
+  sheet: '<path d="M6 3h9l3 3v15H6z"/><path d="M9 8h.01M9 12h.01M9 16h.01" stroke-width="2.6"/><path d="M12 8h3M12 12h3M12 16h3"/>',
   slash: '<path d="M4 4l16 16"/>',
 };
 const icon = (p, off) => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}${off ? SVG.slash : ""}</svg>`;
@@ -1890,7 +1934,7 @@ function restoreOnLoad() {
   let solo = null;
   try { solo = JSON.parse(localStorage.getItem("brk-solo")); } catch (e) {}
   if (solo && solo.st) {
-    ui.mode = solo.mode; ui.close = solo.close === 2 ? 2 : 1; ui.st = solo.st; ui.me = 0;
+    ui.mode = solo.mode; ui.close = solo.close === 2 ? 2 : 1; ui.st = migrateState(solo.st); ui.me = 0;
     ui.screen = "table";
     render();
     runComputer();
