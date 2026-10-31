@@ -877,7 +877,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v16 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v17 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر.</p>
   </div>`;
 }
@@ -1018,8 +1018,8 @@ function applyAction(st, a) {
   if (a.a === "draw") return drawStock(st);
   if (a.a === "take") return takeDiscard(st);
   if (a.a === "return") return returnDiscard(st);
-  if (a.a === "lay") return layMeld(st, a.ids);
-  if (a.a === "add") return addToMeld(st, a.meld, a.ids);
+  if (a.a === "lay") { const r = layMeld(st, a.ids); addTurnTime(st); return r; }
+  if (a.a === "add") { const r = addToMeld(st, a.meld, a.ids); addTurnTime(st); return r; }
   if (a.a === "discard") return discardCard(st, a.id);
   fail("حركة غير معروفة.");
 }
@@ -1792,6 +1792,11 @@ function syncTimer(st) {
   if (st.timerKey === key) return;
   st.timerKey = key;
   st.deadline = key ? Date.now() + TURN_MS : null;
+}
+// Wer eine neue Auslage legt oder an eine bestehende anlegt, bekommt 10 Sekunden dazu, höchstens bis 30 Sekunden.
+const BONUS_MS = 10000;
+function addTurnTime(st) {
+  if (st.deadline && timerActive(st)) st.deadline = Math.min(st.deadline + BONUS_MS, Date.now() + TURN_MS);
 }
 // Gäste rechnen mit der Uhr des Gastgebers (Abweichung kommt mit jeder Nachricht).
 const hostNow = () => Date.now() + (net && !net.host && net.skew || 0);
