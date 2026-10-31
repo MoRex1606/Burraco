@@ -527,10 +527,8 @@ function nextTurn(st) {
   st.current = (st.current + 1) % st.players.length;
   st.turn++;
   st.phase = "draw";
-  if (!st.stock.length) {
-    if (!st.pots.length) endRound(st, null);
-    else { st.stock = st.pots.shift(); st.log += " أصبحت الـ100 كومة السحب."; }
-  }
+  // Regel (Deir-ez-Zor): Ist der Stapel leer, endet die Runde. Die 100er werden nicht zum Stapel.
+  if (!st.stock.length) endRound(st, null);
 }
 function endRound(st, wentOut) {
   const r = st.rules, anyProject = [0, 1].some(t => hasProject(st, t));
@@ -805,7 +803,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v5 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v6 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
