@@ -492,7 +492,7 @@ function meldsAllowClose(melds, r) {
   return projects.length >= 2 && projects.filter(m => m.wild === 0).length >= closeCleanOf(r);
 }
 const canClose = (st, t) => meldsAllowClose(st.melds[t], st.rules);
-const closeText = c => c === 2 ? "مشروعين 200 (بدون جوكر)" : "مشروع 200 ومشروع 100";
+const closeText = c => c === 2 ? "مشروعين 200" : "مشروع 200 ومشروع 100";
 const closeShort = c => c === 2 ? "2×200" : "200+100";
 const speedOf = v => v === 2 ? 2 : 1; // 1 = عادي (30 s), 2 = سريع (20 s)
 const speedSecs = v => speedOf(v) === 2 ? 20 : 30;
@@ -535,7 +535,7 @@ function checkRemaining(st, removing, closeAfter) {
   const rem = st.hands[st.current].length - removing, t = curTeam(st);
   if (rem === 0 && !canTakePot(st, t)) fail("احتفظ بورقة لترميها.");
   if (rem === 1 && !canTakePot(st, t) && !closeAfter)
-    fail("لن تستطيع رمي آخر ورقة: للختم يحتاج فريقك إلى " + closeText(closeCleanOf(st.rules)) + ".");
+    fail("لن تستطيع رمي آخر ورقة: للفتوح يحتاج فريقك إلى " + closeText(closeCleanOf(st.rules)) + ".");
 }
 function removeFromHand(st, ids) {
   const s = new Set(ids);
@@ -584,7 +584,7 @@ function discardCard(st, id) {
   if (!card) fail("الورقة غير موجودة.");
   if (st.mustMeld) fail("أخذت كومة الحرق: يجب أن تنزّل شيئاً أو تضيف على تنزيل قبل أن ترمي.");
   const t = curTeam(st), last = st.hands[st.current].length === 1;
-  if (last && !canTakePot(st, t) && !canClose(st, t)) fail("للختم يحتاج فريقك إلى " + closeText(closeCleanOf(st.rules)) + ".");
+  if (last && !canTakePot(st, t) && !canClose(st, t)) fail("للفتوح يحتاج فريقك إلى " + closeText(closeCleanOf(st.rules)) + ".");
   removeFromHand(st, [id]);
   st.discard.push(card);
   st.log = st.players[st.current].name + ": رمى " + cardLabel(card) + ".";
@@ -900,7 +900,7 @@ function renderStart() {
         <button id="mode-teams" class="${ui.mode === "teams" ? "on" : ""}" data-act="mode" data-v="teams">٢ ضد ٢</button>
         <button id="mode-duel" class="${ui.mode === "duel" ? "on" : ""}" data-act="mode" data-v="duel">١ ضد ١</button>
       </div>
-      <div class="seg" role="group" aria-label="شرط الختم">
+      <div class="seg" role="group" aria-label="شرط الفتوح">
         <button id="close-1" class="${ui.close === 1 ? "on" : ""}" data-act="close" data-v="1" dir="ltr">200 + 100</button>
         <button id="close-2" class="${ui.close === 2 ? "on" : ""}" data-act="close" data-v="2" dir="ltr">2×200</button>
       </div>
@@ -908,7 +908,7 @@ function renderStart() {
         <button id="speed-1" class="${speedOf(ui.speed) === 1 ? "on" : ""}" data-act="speed" data-v="1">عادي</button>
         <button id="speed-2" class="${speedOf(ui.speed) === 2 ? "on" : ""}" data-act="speed" data-v="2">سريع</button>
       </div>
-      <p class="goal-note">للختم: ${closeText(ui.close)} · السرعة: ${speedText(ui.speed)} · الهدف ${BASE_RULES.target} نقطة (كل سطر ÷ 10)</p>
+      <p class="goal-note">للفتوح: ${closeText(ui.close)} · السرعة: ${speedText(ui.speed)} · الهدف ${BASE_RULES.target} نقطة</p>
     </div>
     <div class="btn-col">
       <button class="btn primary" data-act="start">العب ضد الكمبيوتر</button>
@@ -919,8 +919,8 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v27 · ${storageInfo()}</p>
-    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v28 · ${storageInfo()}</p>
+    <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
 function seatHTML(st, p, compact) {
@@ -1787,14 +1787,14 @@ function renderLobby() {
       ${host ? `<div class="seg" role="group" aria-label="نوع اللعب">
         <button class="${L.mode === "teams" ? "on" : ""}" data-act="lmode" data-v="teams">٢ ضد ٢</button>
         <button class="${L.mode === "duel" ? "on" : ""}" data-act="lmode" data-v="duel">١ ضد ١</button></div>
-      <div class="seg" role="group" aria-label="شرط الختم">
+      <div class="seg" role="group" aria-label="شرط الفتوح">
         <button class="${L.close === 1 ? "on" : ""}" data-act="lclose" data-v="1" dir="ltr">200 + 100</button>
         <button class="${L.close === 2 ? "on" : ""}" data-act="lclose" data-v="2" dir="ltr">2×200</button></div>
       <div class="seg" role="group" aria-label="سرعة اللعب">
         <button class="${speedOf(L.speed) === 1 ? "on" : ""}" data-act="lspeed" data-v="1">عادي</button>
         <button class="${speedOf(L.speed) === 2 ? "on" : ""}" data-act="lspeed" data-v="2">سريع</button></div>
-      <p class="goal-note">للختم: ${closeText(L.close)} · السرعة: ${speedText(L.speed)}</p>`
-      : `<p class="goal-note">${L.mode === "teams" ? "٢ ضد ٢" : "١ ضد ١"} · للختم: ${closeText(L.close === 2 ? 2 : 1)} · السرعة: ${speedText(L.speed)}</p>`}
+      <p class="goal-note">للفتوح: ${closeText(L.close)} · السرعة: ${speedText(L.speed)}</p>`
+      : `<p class="goal-note">${L.mode === "teams" ? "٢ ضد ٢" : "١ ضد ١"} · للفتوح: ${closeText(L.close === 2 ? 2 : 1)} · السرعة: ${speedText(L.speed)}</p>`}
       ${lobbySeatsHTML(L.seats, host)}
       ${host ? `<p class="net-note">${L.seats.length === 4 ? "المقعد ١ و٣ فريق، و٢ و٤ فريق. " : ""}اضغط على مقعدين لتبديلهما. المقاعد الفارغة يلعبها الكمبيوتر.</p>` : ""}
       ${host ? nameField() : ""}
