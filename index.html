@@ -328,7 +328,7 @@ const BASE_RULES = {
   goOutBonus: 100,
   noPotPenalty: 100, noProjectPenalty: 0, // Runde ohne Projekte: keine −200, normal werten
   openingThreshold: 0, openingMinimum: 0, // Mindestwert der ersten Auslage: bei uns aus
-  // Am Ende der Runde wird die Summe durch 10 geteilt und so notiert (kaufmännisch gerundet: 125 → 13, −125 → −13).
+  // Jede Zeile der Rundenübersicht wird durch 10 geteilt (kaufmännisch gerundet: 125 → 13, −125 → −13), die Summe ergibt sich aus den geteilten Zeilen.
   scoreDivisor: 10,
   target: 351, // notierte Punkte (entspricht 3510 ungeteilten Punkten)
   // Bedingung zum Beenden (vor Spielbeginn wählbar): wie viele der zwei Projekte ohne Joker sein müssen.
@@ -614,6 +614,13 @@ function recordPoints(total, r) {
   const d = r.scoreDivisor || 1;
   return Math.sign(total) * Math.round(Math.abs(total) / d);
 }
+// Jede Zeile der Rundenübersicht wird durch scoreDivisor geteilt; die Summe ist die Summe der geteilten Zeilen,
+// damit die Tabelle für die Spieler aufgeht.
+const ROW_KEYS = ["meld", "bonus", "out", "hand", "noPot", "noProject", "returned"];
+function scaleRow(s, r) {
+  ROW_KEYS.forEach(k => { s[k] = recordPoints(s[k], r); });
+  s.total = s.meld + s.bonus + s.out - s.hand - s.noPot - s.noProject - s.returned;
+}
 // Alte gespeicherte Spiele (vor v21, ungeteilte Punkte) auf notierte Punkte umstellen.
 function migrateState(st) {
   if (!st || !st.rules || st.rules.scoreDivisor) return st;
@@ -621,7 +628,7 @@ function migrateState(st) {
   st.rules.scoreDivisor = d;
   st.scores = st.scores.map(x => recordPoints(x, st.rules));
   st.rules.target = Math.round(st.rules.target / d);
-  if (st.lastRound) st.lastRound.teams.forEach(s => { s.points = recordPoints(s.total, st.rules); });
+  if (st.lastRound) st.lastRound.teams.forEach(s => scaleRow(s, st.rules));
   return st;
 }
 function endRound(st, wentOut) {
@@ -635,8 +642,8 @@ function endRound(st, wentOut) {
     if (wentOut === t) s.out = r.goOutBonus;
     return s;
   });
-  res.forEach(s => { s.total = s.meld + s.bonus + s.out - s.hand - s.noPot - s.noProject - s.returned; s.points = recordPoints(s.total, r); });
-  [0, 1].forEach(t => { st.scores[t] += res[t].points; });
+  res.forEach(s => scaleRow(s, r));
+  [0, 1].forEach(t => { st.scores[t] += res[t].total; });
   st.lastRound = { teams: res, wentOut };
   const best = Math.max(...st.scores), leaders = [0, 1].filter(t => st.scores[t] === best);
   if (best >= r.target && leaders.length === 1) { st.winner = leaders[0]; st.phase = "gameOver"; }
@@ -890,7 +897,7 @@ function renderStart() {
         <button id="close-1" class="${ui.close === 1 ? "on" : ""}" data-act="close" data-v="1" dir="ltr">200 + 100</button>
         <button id="close-2" class="${ui.close === 2 ? "on" : ""}" data-act="close" data-v="2" dir="ltr">2×200</button>
       </div>
-      <p class="goal-note">للختم: ${closeText(ui.close)} · الهدف ${BASE_RULES.target} نقطة (مجموع كل جولة ÷ 10)</p>
+      <p class="goal-note">للختم: ${closeText(ui.close)} · الهدف ${BASE_RULES.target} نقطة (كل سطر ÷ 10)</p>
     </div>
     <div class="btn-col">
       <button class="btn primary" data-act="start">العب ضد الكمبيوتر</button>
@@ -901,7 +908,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v22 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v23 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200.</p>
   </div>`;
 }
@@ -1030,7 +1037,6 @@ function summaryHTML(st) {
       ${BASE_RULES.noProjectPenalty ? row("بدون مشروع", s => -s.noProject) : ""}
       ${st.rules.returnPenalty ? row("إرجاع كومة الحرق", s => -s.returned) : ""}
       <tr class="sum"><td>هذه الجولة</td><td>${res[0].total}</td><td>${res[1].total}</td></tr>
-      ${(st.rules.scoreDivisor || 1) > 1 ? `<tr class="sum"><td>تُسجَّل (÷${st.rules.scoreDivisor})</td><td>${res[0].points}</td><td>${res[1].points}</td></tr>` : ""}
       <tr class="sum"><td>المجموع</td><td>${st.scores[us]}</td><td>${st.scores[them]}</td></tr>
     </table>
     ${st.phase === "gameOver" ? '<button class="btn primary" data-act="quit">لعبة جديدة</button>'
