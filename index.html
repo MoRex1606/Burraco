@@ -805,7 +805,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v3</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v4 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
@@ -1411,7 +1411,22 @@ function onlineClick(act, el) {
 // ----- Nach dem Neuladen weiterspielen -----
 function saveSolo() {
   if (net || !ui.st || ui.screen !== "table") return;
-  try { localStorage.setItem("brk-solo", JSON.stringify({ st: ui.st, mode: ui.mode, close: ui.close })); } catch (e) {}
+  try { localStorage.setItem("brk-solo", JSON.stringify({ st: ui.st, mode: ui.mode, close: ui.close, at: Date.now() })); }
+  catch (e) { ui.saveError = String(e && e.name || e); }
+}
+// Beim Verlassen der Seite noch einmal sicher speichern (iPhone schließt Safari sonst ohne Vorwarnung).
+function saveNow() { if (net && net.host) { net.sent.clear(); hostBroadcast(); } else saveSolo(); }
+window.addEventListener("pagehide", saveNow);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveNow(); });
+// Kleine Anzeige auf der Startseite, ob Speichern im Browser klappt.
+function storageInfo() {
+  try {
+    localStorage.setItem("brk-test", "1");
+    if (localStorage.getItem("brk-test") !== "1") return "save ✗";
+  } catch (e) { return "save ✗ " + (e && e.name || ""); }
+  if (ui.saveError) return "save ✗ " + ui.saveError;
+  const keys = ["brk-solo", "brk-host", "brk-guest"].filter(k => localStorage.getItem(k));
+  return "save ✓" + (keys.length ? " (" + keys.map(k => k.slice(4)).join(", ") + ")" : "") + (ui.restoreError ? " ✗ " + ui.restoreError : "");
 }
 function quitCleanup() {
   localStorage.removeItem("brk-solo");
@@ -1437,7 +1452,8 @@ function restoreOnLoad() {
     runComputer();
   }
 }
-restoreOnLoad();
+try { restoreOnLoad(); }
+catch (e) { console.error(e); ui.restoreError = String(e && e.message || e).slice(0, 60); ui.screen = "start"; ui.st = null; net = null; }
 render();
 </script>
 </body>
