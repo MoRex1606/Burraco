@@ -805,7 +805,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v4 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v5 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
@@ -852,7 +852,7 @@ function renderTable() {
   const meldScroll = app.querySelector(".melds")?.scrollTop ?? null;
 
   let html = `<div class="top">
-      <button class="icon-btn" data-act="quit" aria-label="إنهاء اللعبة">✕</button>
+      <button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button>
       <div class="scores">
         <div class="score panel us"><small>نحن</small><b>${st.scores[us]}</b></div>
         <div class="score panel"><small>الخصم</small><b>${st.scores[them]}</b></div>
@@ -887,6 +887,7 @@ function renderTable() {
       ${hand.map(c => cardHTML(c, ui.selected.has(c.id) ? "sel" : "")).join("")}</div></div>`;
 
   if (st.phase === "roundOver" || st.phase === "gameOver") html += summaryHTML(st);
+  if (ui.confirmQuit) html += quitConfirmHTML();
   app.innerHTML = html;
   if (meldScroll !== null) app.querySelector(".melds").scrollTop = meldScroll;
 }
@@ -999,6 +1000,10 @@ app.addEventListener("click", e => {
   if (act === "mode") { ui.mode = el.dataset.v; return render(); }
   if (act === "close") { ui.close = Number(el.dataset.v); return render(); }
   if (act === "start") return startGame();
+  if (act === "askquit") return askQuit();
+  if (act === "cancelquit") { ui.confirmQuit = null; return render(); }
+  if (act === "quit" && ui.confirmQuit && Date.now() < ui.confirmQuit.until) return;
+  if (act === "quit") ui.confirmQuit = null;
   if (act === "quit") {
     quitCleanup();
     netLeave(); ui.gen++; ui.thinking = false; ui.screen = "start"; ui.st = null; ui.me = 0; return render(); }
@@ -1018,6 +1023,31 @@ app.addEventListener("click", e => {
   if (onlineClick(act, el) !== false) return;
 });
 
+// ---------- Wirklich beenden? (✕ oben) ----------
+// Versehentliches Antippen soll das Spiel nicht beenden: Bestätigen geht erst nach 3 Sekunden.
+const QUIT_WAIT_MS = 3000;
+function askQuit() {
+  if (!ui.st) return;
+  ui.confirmQuit = { until: Date.now() + QUIT_WAIT_MS };
+  render();
+  const tick = setInterval(() => {
+    if (!ui.confirmQuit) return clearInterval(tick);
+    render();
+    if (Date.now() >= ui.confirmQuit.until) clearInterval(tick);
+  }, 250);
+}
+function quitConfirmHTML() {
+  const left = Math.max(0, Math.ceil((ui.confirmQuit.until - Date.now()) / 1000));
+  const note = !net ? "ستضيع هذه اللعبة." : net.host ? "أنت المضيف: سيتوقف اللعب عند الجميع." : "يمكنك الرجوع لاحقاً إلى الغرفة.";
+  return `<div class="overlay"><div class="summary">
+    <h2>هل تريد الخروج؟</h2>
+    <p class="net-note">${note}</p>
+    <div class="btn-row">
+      <button class="btn primary" data-act="cancelquit">لا، تابع اللعب</button>
+      <button class="btn" data-act="quit" ${left ? "disabled" : ""}>${left ? "نعم، اخرج (" + left + ")" : "نعم، اخرج"}</button>
+    </div>
+  </div></div>`;
+}
 
 // ---------- Online mit Freunden ----------
 // Peer-to-Peer über PeerJS: Das Gerät des Gastgebers hält den echten Spielstand und prüft alle Züge.
