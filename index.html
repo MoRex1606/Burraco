@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#062a1c">
+<title>بوراكو ديرية</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Reem+Kufi:wght@500;700&family=Tajawal:wght@400;500;700;800&display=swap">
+<style>
+/* Layout: one-screen card table, portrait. Partner oben, Gegner links/rechts, Auslagen in der Mitte, eigene Hand unten. */
+:root {
+  --felt: #12573a;
+  --felt-deep: #062a1c;
+  --brass: #dcb462;
+  --brass-dim: rgba(220, 180, 98, .35);
+  --ink: #f2efe6;
+  --ink-dim: rgba(242, 239, 230, .62);
+  --panel: rgba(0, 0, 0, .26);
+  --card: #fdfaf2;
+  --card-red: #c21f2a;
+  --card-black: #1b1b20;
+  --back: #741427;
+  --warn: #ffc08a;
+  --f-display: "Marcellus", "Iowan Old Style", Georgia, serif;
+  --f-body: "Tajawal", "Geeza Pro", system-ui, -apple-system, sans-serif;
+  --f-arabic-display: "Reem Kufi", "Geeza Pro", serif;
+  --cw: 52px;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 45%, var(--felt) 0%, var(--felt-deep) 85%) fixed, var(--felt-deep);
+  color: var(--ink);
+  font-family: var(--f-body);
+  overflow: hidden;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; }
+#app {
+  height: 100%;
+  display: flex; flex-direction: column; gap: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 8px;
+  max-width: 560px; margin: 0 auto; box-sizing: border-box;
+}
+.panel { background: var(--panel); border: 1px solid var(--brass-dim); border-radius: 12px; }
+
+/* Karten */
+.card {
+  width: var(--cw); height: calc(var(--cw) * 1.42); flex: none;
+  background: var(--card); border-radius: calc(var(--cw) * .12);
+  box-shadow: 0 1px 3px rgba(0,0,0,.45); position: relative;
+  color: var(--card-black); box-sizing: border-box; border: 1px solid rgba(0,0,0,.15);
+}
+.card.red { color: var(--card-red); }
+/* Kartenwerte in Tajawal: in Marcellus hängt das J unter die Grundlinie und sieht auf dem Handy wie ein I aus. */
+.card .ix { position: absolute; left: 6%; top: 2%; line-height: 1; text-align: center; font-family: "Tajawal", system-ui, -apple-system, sans-serif; }
+.card .ix b { display: block; font-size: calc(var(--cw) * .44); font-weight: 700; letter-spacing: -.04em; }
+.card .ix i { font-style: normal; font-size: calc(var(--cw) * .34); }
+.card .pip { position: absolute; right: 8%; bottom: 4%; font-size: calc(var(--cw) * .5); line-height: 1; opacity: .9; }
+.card.joker { color: #8a5a12; }
+.card.joker .pip { color: #b0852c; }
+.card .jk { position: absolute; inset: 0; display: grid; place-items: center; font: 800 calc(var(--cw) * .24) var(--f-body); transform: rotate(-30deg); color: #8a5a12; }
+.card .wild { position: absolute; right: 8%; top: 5%; font-size: calc(var(--cw) * .22); color: #b0852c; }
+.card.sel { outline: 3px solid var(--brass); transform: translateY(-14px); }
+.back {
+  width: var(--cw); height: calc(var(--cw) * 1.42); flex: none; box-sizing: border-box;
+  border-radius: calc(var(--cw) * .12); border: 1px solid var(--brass);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 5px, rgba(220,180,98,.28) 5px 6px),
+    repeating-linear-gradient(-45deg, transparent 0 5px, rgba(220,180,98,.28) 5px 6px),
+    var(--back);
+  box-shadow: 0 1px 3px rgba(0,0,0,.45);
+}
+.slot { width: var(--cw); height: calc(var(--cw) * 1.42); border: 1px dashed rgba(255,255,255,.3); border-radius: 6px; box-sizing: border-box; }
+
+/* Kopf */
+.top { display: flex; align-items: center; gap: 8px; }
+.icon-btn { background: none; border: 0; color: var(--brass); font-size: 20px; padding: 4px 8px; cursor: pointer; }
+.scores { flex: 1; display: flex; justify-content: center; gap: 8px; }
+.score { padding: 4px 12px; text-align: center; min-width: 64px; }
+.score small { display: block; font-size: 11px; color: var(--ink-dim); }
+.score b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.score.us b { color: var(--brass); }
+.goal { font-size: 11px; color: var(--ink-dim); }
+
+/* Sitzplätze */
+.seat { display: flex; flex-direction: column; align-items: center; gap: 4px; --cw: 22px; }
+.seat .name { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 99px; background: rgba(0,0,0,.3); }
+.seat.active .name { background: var(--brass); color: #1a1408; }
+.seat .fan { display: flex; }
+.seat .fan .back + .back { margin-left: -14px; }
+.seat small { font-size: 11px; color: var(--ink-dim); }
+
+.mid { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.piles { display: flex; gap: 12px; align-items: flex-end; }
+.pile { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; padding: 0; cursor: pointer; --cw: 48px; }
+.pile:disabled { cursor: default; }
+.pile.ready .back, .pile.ready .card { box-shadow: 0 0 0 2px var(--brass), 0 0 14px rgba(220,180,98,.6); }
+.pile small { font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.stack { position: relative; }
+.stack .back:first-child { position: absolute; left: 2px; top: 2px; }
+.pots { display: flex; gap: 4px; --cw: 22px; }
+.pots .slot { border-radius: 3px; }
+
+/* Ablage als Fächer */
+.discard-row {
+  display: flex; flex-direction: column; gap: 4px; align-items: stretch; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--brass-dim); border-radius: 12px; padding: 6px 10px 8px;
+}
+.discard-row:disabled { cursor: default; }
+.discard-row.ready { border-color: var(--brass); box-shadow: 0 0 12px rgba(220,180,98,.45); }
+.discard-label { font-size: 12px; color: var(--ink-dim); text-align: start; font-variant-numeric: tabular-nums; }
+.discard-row.ready .discard-label { color: var(--brass); }
+.discard-cards { display: flex; --cw: 40px; min-height: calc(40px * 1.42); }
+.discard-cards .card + .card { margin-left: var(--overlap, -10px); }
+
+/* Kartenreihen bleiben links-nach-rechts, auch im arabischen Layout. */
+.card, .mid, .piles, .pots, .fan, .fanned, .hand-inner, .discard-cards, .meld .cards { direction: ltr; }
+
+/* Auslagen */
+.melds { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+.melds h3 { margin: 0; font: 700 13px var(--f-body); color: var(--brass); display: flex; gap: 8px; align-items: baseline; }
+.melds h3 span { font-weight: 400; color: var(--ink-dim); font-size: 11px; }
+.melds hr { border: 0; border-top: 1px solid var(--brass-dim); width: 100%; margin: 0; }
+.meld-row { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+.meld { display: flex; flex-direction: column; gap: 2px; background: none; border: 0; padding: 2px; cursor: pointer; border-radius: 6px; --cw: 38px; }
+.meld .cards { display: flex; }
+.meld .cards .card + .card { margin-left: calc(var(--cw) * -.45); }
+.meld .tag { font-size: 11px; font-weight: 800; color: var(--ink-dim); text-align: start; }
+.meld .tag.clean { color: var(--brass); }
+.meld.target { box-shadow: 0 0 0 1px var(--brass-dim); }
+.empty { font-size: 11px; color: rgba(242,239,230,.4); }
+
+/* Status, Knöpfe, Hand */
+.status { text-align: center; min-height: 34px; }
+.status p { margin: 0; font-size: 13px; }
+.status p.err { color: var(--warn); font-weight: 600; }
+.status small { font-size: 11px; color: var(--ink-dim); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.actions { display: flex; justify-content: center; gap: 8px; }
+.btn {
+  font-weight: 600; font-size: 14px; padding: 9px 16px; border-radius: 99px; cursor: pointer;
+  border: 1px solid rgba(220,180,98,.6); background: rgba(0,0,0,.35); color: var(--brass);
+}
+.btn.primary { background: var(--brass); color: #1a1408; }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn:focus-visible, .pile:focus-visible, .meld:focus-visible, .card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* Hand passt immer in die Breite; Karten gedrückt halten und ziehen zum Umsortieren. */
+.hand { padding: 22px 0 6px; --cw: 58px; touch-action: none; -webkit-touch-callout: none; }
+.hand-inner { display: flex; justify-content: center; }
+.hand .card { cursor: grab; transition: transform .15s; transform: translate(var(--dx, 0px), var(--dy, 0px)); }
+.hand .card + .card { margin-left: var(--overlap, -22px); }
+.hand .card.sel { outline: 3px solid var(--brass); --dy: -14px; }
+.hand .card.dragging { transition: none; z-index: 3; cursor: grabbing; box-shadow: 0 10px 22px rgba(0,0,0,.55); }
+
+/* Start und Wertung */
+.start { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }
+.start .fanned { display: flex; --cw: 70px; }
+.start .fanned .card:nth-child(1) { transform: rotate(-14deg) translateX(14px); }
+.start .fanned .card:nth-child(2) { transform: translateY(-10px); z-index: 1; }
+.start .fanned .card:nth-child(3) { transform: rotate(14deg) translateX(-14px); }
+.start h1 { margin: 0; font: 700 46px var(--f-arabic-display); color: var(--brass); text-wrap: balance; }
+.start .sub { margin: 4px 0 0; color: var(--ink-dim); }
+.opts { padding: 14px; display: flex; flex-direction: column; gap: 12px; width: min(100%, 320px); box-sizing: border-box; }
+.seg { display: flex; background: rgba(0,0,0,.3); border-radius: 99px; padding: 3px; }
+.seg button { flex: 1; border: 0; background: none; padding: 7px; border-radius: 99px; cursor: pointer; color: var(--ink-dim); font-weight: 600; }
+.seg button.on { background: var(--brass); color: #1a1408; }
+.goal-note { margin: 0; font-size: 14px; color: var(--ink-dim); text-align: center; }
+.opts label { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.opts input { accent-color: var(--brass); width: 20px; height: 20px; }
+.rules-note { font-size: 12px; color: var(--ink-dim); max-width: 32ch; margin: 0; }
+
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 5; }
+.summary { background: var(--felt-deep); border: 1px solid var(--brass); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px; align-items: center; width: min(100%, 360px); box-sizing: border-box; }
+.summary h2 { margin: 0; font: 700 26px var(--f-arabic-display); color: var(--brass); text-align: center; }
+.summary table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+.summary td, .summary th { padding: 4px 6px; text-align: end; }
+.summary td:first-child, .summary th:first-child { text-align: start; color: var(--ink-dim); font-weight: 400; }
+.summary tr.sum td { border-top: 1px solid var(--brass-dim); font-weight: 800; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .hand .card { transition: none; } }
+@media (max-height: 700px) { .hand { --cw: 52px; } .seat { --cw: 18px; } .pile { --cw: 42px; } }
+.summary { max-height: 100%; overflow-y: auto; }
+/* Hilfscontainer nur fürs Querformat; hochkant verhalten sie sich, als gäbe es sie nicht. */
+.board, .controls { display: contents; }
+
+/* Querformat (Handy quer): Tisch links/rechts aufteilen, Hand über die ganze Breite unten. */
+@media (orientation: landscape) and (max-height: 560px) {
+  #app { max-width: 1000px; overflow-y: auto; padding-block: 4px; gap: 6px; }
+  #app.table {
+    display: grid; gap: 4px 14px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "top melds" "board melds" "discard melds" "controls melds" "hand hand";
+  }
+  .top { grid-area: top; }
+  .score { padding: 2px 10px; }
+  .score b { font-size: 16px; }
+  .board { grid-area: board; display: flex; align-items: center; justify-content: center; gap: 18px; }
+  .seat { --cw: 18px; }
+  .pile { --cw: 30px; }
+  .discard-row { grid-area: discard; padding: 2px 8px 4px; gap: 2px; }
+  .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
+  .melds { grid-area: melds; }
+  .controls { grid-area: controls; display: flex; align-items: center; align-self: start; gap: 8px; }
+  .status { flex: 1; min-width: 0; min-height: 0; text-align: start; }
+  .btn { padding: 7px 14px; }
+  .hand { grid-area: hand; padding: 12px 0 0; --cw: 46px; }
+  .start { gap: 12px; padding-block: 8px; }
+  .start .fanned { --cw: 46px; }
+  .start h1 { font-size: 34px; }
+}
+
+/* Online: Name, Code, Warteraum */
+.opts label.field, .field { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 4px; font-size: 13px; color: var(--ink-dim); text-align: start; }
+.opts .field input, .field input { width: auto; height: auto; box-sizing: border-box; font: inherit; font-size: 16px; color: var(--ink); background: rgba(0,0,0,.35); border: 1px solid var(--brass-dim); border-radius: 10px; padding: 9px 12px; -webkit-user-select: text; user-select: text; }
+.field input.code { font: 700 24px var(--f-display); letter-spacing: .25em; text-align: center; text-transform: uppercase; direction: ltr; }
+.btn-col { display: flex; flex-direction: column; gap: 10px; width: min(100%, 320px); }
+.btn-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.room-code { font: 700 40px var(--f-display); letter-spacing: .2em; color: var(--brass); direction: ltr; margin: 0; }
+.seats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.seats button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--brass-dim); background: rgba(0,0,0,.25); cursor: pointer; text-align: start; }
+.seats button.pick { border-color: var(--brass); box-shadow: 0 0 10px rgba(220,180,98,.5); }
+.seats button:disabled { cursor: default; }
+.seats small { color: var(--ink-dim); font-size: 12px; }
+.seats .team { color: var(--brass); font-size: 12px; font-weight: 700; }
+.net-note { font-size: 13px; color: var(--ink-dim); margin: 0; max-width: 34ch; }
+.net-note.err { color: var(--warn); font-weight: 600; }
+.seat.offline .name { opacity: .5; text-decoration: line-through; }
+.net-badge { font-size: 11px; color: var(--warn); }
+</style>
+<script src="peerjs.min.js"></script>
+</head>
+<body>
+<div id="app" dir="rtl" lang="ar"></div>
+
+<script>
+"use strict";
+// ---------- Karten und Regeln ----------
+const SUITS = ["♠", "♥", "♦", "♣"];
+const RANK_LABEL = { 1: "A", 11: "J", 12: "Q", 13: "K" };
+const rankLabel = r => RANK_LABEL[r] || String(r);
+const isRed = c => c.suit === 1 || c.suit === 2;
+// rank 0 = echter Joker (2 Stück im Deck). Joker und alle 2er sind wild.
+const isJoker = c => c.rank === 0;
+const isWild = c => c.rank === 2 || isJoker(c);
+const cardLabel = c => isJoker(c) ? "جوكر" : rankLabel(c.rank) + SUITS[c.suit];
+
+// Alle einstellbaren Regeln an einer Stelle (Mos Anpassungen kommen hier rein).
+const BASE_RULES = {
+  handSize: 11, potSize: 11, minMeld: 3, projectSize: 7, maxWilds: 1,
+  cleanBonus: 200, dirtyBonus: 100, // Projekt aus einer Reihe
+  fullRunBonus: 400, // volle Reihe A-2-…-K-A ohne Joker
+  setCleanBonus: 300, setDirtyBonus: 150, // Projekt aus einem Satz (auch aus 2ern)
+  goOutBonus: 100,
+  noPotPenalty: 100, noProjectPenalty: 200,
+  openingThreshold: 0, openingMinimum: 0, // Mindestwert der ersten Auslage: bei uns aus
+  target: 3510,
+  // Bedingung zum Beenden (vor Spielbeginn wählbar): Projekte ohne Joker ("200") und Projekte insgesamt.
+  closeClean: 1, closeTotal: 2,
+  setRanks: [1, 2, 3], // Sätze (gleiche Werte) nur aus A, 2 und 3
+  returnPenalty: 0, // Strafe fürs Zurücklegen der Ablage (vorerst aus)
+};
+function cardValue(c) {
+  if (c.rank === 1) return 15;
+  if (isJoker(c) || c.rank === 2) return 10;
+  if (c.rank <= 7) return 5;
+  return 10;
+}
+function doubleDeck() {
+  const cards = []; let id = 0;
+  for (let d = 0; d < 2; d++) for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) cards.push({ id: id++, suit: s, rank: r });
+  for (let j = 0; j < 2; j++) cards.push({ id: id++, suit: 4, rank: 0 });
+  return cards;
+}
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function sortHand(h) {
+  return h.slice().sort((a, b) => (isWild(a) - isWild(b)) || (a.suit - b.suit) || (a.rank - b.rank));
+}
+
+// ---------- Kombinationen prüfen ----------
+let meldSeq = 0;
+const newId = () => "m" + (++meldSeq) + "_" + Math.random().toString(36).slice(2, 6);
+const sameKind = (a, b) => a.t === b.t && (a.t === "run" ? a.suit === b.suit : a.rank === b.rank);
+
+function validate(cards, rules, kind, id) {
+  if (cards.length < rules.minMeld) return null;
+  id = id || newId();
+  const tryRun = () => validateRun(cards, rules, id);
+  const trySet = () => validateSet(cards, rules, id);
+  let m = null;
+  if (!kind) m = tryRun() || trySet();
+  else m = kind.t === "run" ? tryRun() : trySet();
+  if (m && kind && !sameKind(m.kind, kind)) return null;
+  return m;
+}
+function validateSet(cards, rules, id) {
+  const nat = cards.filter(c => !isWild(c)), wilds = cards.filter(isWild);
+  if (nat.length === 0) {
+    // Satz aus 2ern: die 2er sind hier echte Karten, nur echte Joker zählen als Joker.
+    const twos = cards.filter(c => c.rank === 2), jokers = cards.filter(isJoker);
+    if (!twos.length || jokers.length > rules.maxWilds || !rules.setRanks.includes(2)) return null;
+    return { id, kind: { t: "set", rank: 2 }, cards: twos.sort((a, b) => a.suit - b.suit).concat(jokers), wild: jokers.length };
+  }
+  const rank = nat[0].rank;
+  if (!rules.setRanks.includes(rank)) return null;
+  if (!nat.every(c => c.rank === rank) || wilds.length > rules.maxWilds) return null;
+  return { id, kind: { t: "set", rank }, cards: nat.sort((a, b) => a.suit - b.suit).concat(wilds), wild: wilds.length };
+}
+function validateRun(cards, rules, id) {
+  const nonTwos = cards.filter(c => !isWild(c));
+  if (!nonTwos.length) return null;
+  const suit = nonTwos[0].suit;
+  if (!nonTwos.every(c => c.suit === suit)) return null;
+  const twos = cards.filter(isWild);
+  const options = [];
+  const sameSuitTwo = twos.find(c => c.rank === 2 && c.suit === suit);
+  if (sameSuitTwo) options.push(sameSuitTwo);
+  options.push(null);
+  for (const natTwo of options) {
+    const nat = natTwo ? nonTwos.concat([natTwo]) : nonTwos;
+    const wilds = natTwo ? twos.filter(c => c.id !== natTwo.id) : twos;
+    if (wilds.length > rules.maxWilds) continue;
+    // Ass unten, oben, oder (volle Reihe A-2-…-K-A) zwei Asse an beiden Enden.
+    for (const aceMode of ["low", "high", "both"]) {
+      const m = arrangeRun(nat, wilds, aceMode, suit, id);
+      if (m) return m;
+    }
+  }
+  return null;
+}
+function arrangeRun(nat, wilds, aceMode, suit, id) {
+  const byPos = new Map();
+  if (aceMode === "both" && nat.filter(c => c.rank === 1).length !== 2) return null;
+  let acesSeen = 0;
+  for (const c of nat) {
+    let p = c.rank;
+    if (c.rank === 1) p = aceMode === "high" || (aceMode === "both" && acesSeen++ > 0) ? 14 : 1;
+    if (byPos.has(p)) return null;
+    byPos.set(p, c);
+  }
+  const keys = [...byPos.keys()];
+  let lo = Math.min(...keys), hi = Math.max(...keys);
+  const gaps = (hi - lo + 1) - byPos.size;
+  if (gaps > wilds.length) return null;
+  for (let i = 0; i < wilds.length - gaps; i++) {
+    if (hi < 14) hi++; else if (lo > 1) lo--; else return null;
+  }
+  const rest = wilds.slice(), ordered = [];
+  for (let p = lo; p <= hi; p++) {
+    if (byPos.has(p)) ordered.push(byPos.get(p));
+    else if (rest.length) ordered.push(rest.pop());
+    else return null;
+  }
+  return { id, kind: { t: "run", suit }, cards: ordered, wild: wilds.length };
+}
+const isProject = (m, r) => m.cards.length >= r.projectSize;
+const meldPoints = m => m.cards.reduce((s, c) => s + cardValue(c), 0);
+function meldBonus(m, r) {
+  if (!isProject(m, r)) return 0;
+  if (m.kind.t === "set") return m.wild === 0 ? r.setCleanBonus : r.setDirtyBonus;
+  if (m.wild === 0 && m.cards.length === 14) return r.fullRunBonus; // A-2-…-K-A ohne Joker
+  return m.wild === 0 ? r.cleanBonus : r.dirtyBonus;
+}
+
+// ---------- Spielstand ----------
+class GameError extends Error {}
+const fail = msg => { throw new GameError(msg); };
+const teamOf = p => p % 2;
+const TEAM_NAMES = ["نحن", "الخصم"];
+
+function newGame(players, rules) {
+  const st = { rules, players, scores: [0, 0], dealer: players.length - 1, winner: null };
+  startRound(st);
+  return st;
+}
+function startRound(st) {
+  const r = st.rules, deck = shuffle(doubleDeck());
+  st.hands = st.players.map(() => sortHand(deck.splice(-r.handSize)));
+  st.pots = [deck.splice(-r.potSize), deck.splice(-r.potSize)];
+  st.stock = deck;
+  st.discard = [];
+  st.melds = [[], []];
+  st.tookPot = [false, false];
+  st.opened = [false, false];
+  st.dealer = (st.dealer + 1) % st.players.length;
+  st.current = (st.dealer + 1) % st.players.length;
+  st.phase = "draw";
+  st.turn = 0;
+  st.firstDrawId = null;
+  st.mustMeld = false;
+  st.takenIds = null;
+  st.penalties = [0, 0];
+  st.lastRound = null;
+  st.log = st.players[st.current].name + ": يبدأ اللعب.";
+}
+const curTeam = st => teamOf(st.current);
+const hasProject = (st, t) => st.melds[t].some(m => isProject(m, st.rules));
+function meldsAllowClose(melds, r) {
+  const projects = melds.filter(m => isProject(m, r));
+  return projects.filter(m => m.wild === 0).length >= r.closeClean && projects.length >= r.closeTotal;
+}
+const canClose = (st, t) => meldsAllowClose(st.melds[t], st.rules);
+const closeText = r => r.closeClean === 1 ? "مشروع 200 ومشروع 100" : "مشروعين 200 ومشروع 100";
+const canTakePot = (st, t) => !st.tookPot[t] && st.pots.length > 0;
+const needsOpening = (st, t) => st.scores[t] >= st.rules.openingThreshold && !st.opened[t];
+
+function drawStock(st) {
+  if (st.phase !== "draw") fail("لقد سحبت ورقة بالفعل.");
+  if (!st.stock.length) fail("كومة السحب فارغة.");
+  const c = st.stock.pop();
+  st.hands[st.current].push(c);
+  if (st.turn === 0) st.firstDrawId = c.id;
+  st.phase = "play";
+  st.log = st.players[st.current].name + ": سحب من الكومة.";
+}
+function takeDiscard(st) {
+  if (st.phase !== "draw") fail("لقد سحبت ورقة بالفعل.");
+  if (!st.discard.length) fail("كومة الحرق فارغة.");
+  if (st.hands[st.current].length === 1 && st.discard.length === 1) fail("لا يمكنك أخذ كومة حرق فيها ورقة واحدة وبيدك ورقة واحدة.");
+  // Regel (Deir-ez-Zor): Wer die Ablage nimmt, muss danach etwas auslegen oder anlegen.
+  // Sonst muss er alles zurücklegen (returnDiscard) und bekommt Minuspunkte.
+  const n = st.discard.length;
+  st.takenIds = st.discard.map(c => c.id);
+  st.hands[st.current].push(...st.discard);
+  st.discard = [];
+  st.phase = "play";
+  st.mustMeld = true;
+  st.log = st.players[st.current].name + ": أخذ كومة الحرق (" + n + " أوراق).";
+}
+function cardsFromHand(st, ids) {
+  if (!ids.length) fail("لم تختر أي ورقة.");
+  const hand = st.hands[st.current];
+  const cards = ids.map(id => hand.find(c => c.id === id)).filter(Boolean);
+  if (cards.length !== ids.length || new Set(ids).size !== ids.length) fail("الورقة غير موجودة.");
+  return cards;
+}
+function checkRemaining(st, removing, closeAfter) {
+  const rem = st.hands[st.current].length - removing, t = curTeam(st);
+  if (rem === 0 && !canTakePot(st, t)) fail("احتفظ بورقة لترميها.");
+  if (rem === 1 && !canTakePot(st, t) && !closeAfter)
+    fail("لن تستطيع رمي آخر ورقة: للختم يحتاج فريقك إلى " + closeText(st.rules) + ".");
+}
+function removeFromHand(st, ids) {
+  const s = new Set(ids);
+  st.hands[st.current] = st.hands[st.current].filter(c => !s.has(c.id));
+}
+function takePot(st) {
+  st.hands[st.current] = sortHand(st.pots.shift());
+  st.tookPot[curTeam(st)] = true;
+  st.log += " " + st.players[st.current].name + ": أخذ الـ100.";
+}
+function takePotIfEmpty(st) {
+  if (!st.hands[st.current].length && canTakePot(st, curTeam(st))) takePot(st);
+}
+function layMeld(st, ids) {
+  if (st.phase !== "play") fail("اسحب ورقة أولاً.");
+  const cards = cardsFromHand(st, ids), r = st.rules, t = curTeam(st);
+  const m = validate(cards, r);
+  if (!m) fail("هذا ليس تنزيلاً صحيحاً.");
+  if (needsOpening(st, t) && meldPoints(m) < r.openingMinimum)
+    fail("بعد " + r.openingThreshold + " نقطة يجب أن يساوي أول تنزيل " + r.openingMinimum + " نقطة على الأقل.");
+  checkRemaining(st, cards.length, meldsAllowClose(st.melds[t].concat([m]), r));
+  removeFromHand(st, ids);
+  st.melds[t].push(m);
+  st.opened[t] = true;
+  st.mustMeld = false;
+  st.log = st.players[st.current].name + ": نزّل " + m.cards.length + " أوراق.";
+  takePotIfEmpty(st);
+}
+function addToMeld(st, meldId, ids) {
+  if (st.phase !== "play") fail("اسحب ورقة أولاً.");
+  const t = curTeam(st), idx = st.melds[t].findIndex(m => m.id === meldId);
+  if (idx < 0) fail("يمكنك الإضافة على تنزيلات فريقك فقط.");
+  const cards = cardsFromHand(st, ids), ex = st.melds[t][idx];
+  const up = validate(ex.cards.concat(cards), st.rules, ex.kind, ex.id);
+  if (!up) fail("هذه الأوراق لا تركب هنا.");
+  checkRemaining(st, cards.length, meldsAllowClose(st.melds[t].map((x, i) => i === idx ? up : x), st.rules));
+  removeFromHand(st, ids);
+  st.melds[t][idx] = up;
+  st.mustMeld = false;
+  st.log = st.players[st.current].name + ": أضاف على تنزيل.";
+  takePotIfEmpty(st);
+}
+function discardCard(st, id) {
+  if (st.phase !== "play") fail("اسحب ورقة أولاً.");
+  const card = st.hands[st.current].find(c => c.id === id);
+  if (!card) fail("الورقة غير موجودة.");
+  if (st.mustMeld) fail("أخذت كومة الحرق: يجب أن تنزّل شيئاً أو تضيف على تنزيل قبل أن ترمي.");
+  if (st.turn === 0 && id === st.firstDrawId) fail("لا يجوز رمي أول ورقة مسحوبة في اللفة الأولى.");
+  const t = curTeam(st), last = st.hands[st.current].length === 1;
+  if (last && !canTakePot(st, t) && !canClose(st, t)) fail("للختم يحتاج فريقك إلى " + closeText(st.rules) + ".");
+  removeFromHand(st, [id]);
+  st.discard.push(card);
+  st.log = st.players[st.current].name + ": رمى " + cardLabel(card) + ".";
+  if (last) {
+    if (canTakePot(st, t)) takePot(st);
+    else { endRound(st, t); return; }
+  }
+  nextTurn(st);
+}
+// Ablage genommen, aber nichts ausgelegt: alles zurück und stattdessen eine Karte vom Stapel ziehen.
+function returnDiscard(st) {
+  if (st.phase !== "play" || !st.mustMeld || !st.takenIds) fail("لا يوجد شيء لإرجاعه.");
+  const ids = new Set(st.takenIds), hand = st.hands[st.current];
+  st.discard = st.takenIds.map(id => hand.find(c => c.id === id));
+  st.hands[st.current] = hand.filter(c => !ids.has(c.id));
+  st.penalties[curTeam(st)] += st.rules.returnPenalty;
+  st.mustMeld = false;
+  st.takenIds = null;
+  st.phase = "draw";
+  drawStock(st);
+  st.log = st.players[st.current].name + ": أرجع كومة الحرق" + (st.rules.returnPenalty ? " (−" + st.rules.returnPenalty + ")" : "") + " وسحب ورقة.";
+}
+function nextTurn(st) {
+  st.mustMeld = false;
+  st.takenIds = null;
+  st.current = (st.current + 1) % st.players.length;
+  st.turn++;
+  st.phase = "draw";
+  if (!st.stock.length) {
+    if (!st.pots.length) endRound(st, null);
+    else { st.stock = st.pots.shift(); st.log += " أصبحت الـ100 كومة السحب."; }
+  }
+}
+function endRound(st, wentOut) {
+  const r = st.rules, anyProject = [0, 1].some(t => hasProject(st, t));
+  const res = [0, 1].map(t => {
+    const s = { meld: 0, bonus: 0, out: 0, hand: 0, noPot: 0, noProject: 0, returned: st.penalties[t] };
+    if (!anyProject) { s.noProject = r.noProjectPenalty; return s; }
+    for (const m of st.melds[t]) { s.meld += meldPoints(m); s.bonus += meldBonus(m, r); }
+    st.players.forEach((_, p) => { if (teamOf(p) === t) s.hand += st.hands[p].reduce((a, c) => a + cardValue(c), 0); });
+    if (wentOut === t) s.out = r.goOutBonus;
+    if (!st.tookPot[t]) s.noPot = r.noPotPenalty;
+    return s;
+  });
+  res.forEach(s => { s.total = s.meld + s.bonus + s.out - s.hand - s.noPot - s.noProject - s.returned; });
+  [0, 1].forEach(t => { st.scores[t] += res[t].total; });
+  st.lastRound = { teams: res, wentOut };
+  const best = Math.max(...st.scores), leaders = [0, 1].filter(t => st.scores[t] === best);
+  if (best >= r.target && leaders.length === 1) { st.winner = leaders[0]; st.phase = "gameOver"; }
+  else st.phase = "roundOver";
+  st.log = wentOut !== null ? "فريق " + TEAM_NAMES[wentOut] + " ختم الجولة." : "انتهت كومة السحب، انتهت الجولة.";
+}
+
+// ---------- Computer-Spieler ----------
+const clone = st => JSON.parse(JSON.stringify(st));
+const canAdd = (cards, m, r) => !!validate(m.cards.concat(cards), r, m.kind, m.id);
+function isLegal(st, move) {
+  const c = clone(st);
+  try { move.t === "meld" ? layMeld(c, move.ids) : addToMeld(c, move.meld, move.ids); return true; }
+  catch (e) { return false; }
+}
+function consecutive(sorted) {
+  const segs = [];
+  for (const p of sorted) {
+    const last = segs.length ? segs[segs.length - 1] : null;
+    if (last && p === last[last.length - 1] + 1) last.push(p); else segs.push([p]);
+  }
+  return segs;
+}
+function meldCandidates(hand, r) {
+  const nat = hand.filter(c => !isWild(c)), wild = hand.find(isWild), out = [];
+  const byRank = {};
+  nat.forEach(c => (byRank[c.rank] = byRank[c.rank] || []).push(c));
+  for (const g of Object.values(byRank)) {
+    if (g.length >= r.minMeld) out.push(g);
+    else if (g.length === r.minMeld - 1 && wild) out.push(g.concat([wild]));
+  }
+  for (let s = 0; s < 4; s++) {
+    const byPos = new Map();
+    nat.filter(c => c.suit === s).forEach(c => (c.rank === 1 ? [1, 14] : [c.rank]).forEach(p => { if (!byPos.has(p)) byPos.set(p, c); }));
+    const segs = consecutive([...byPos.keys()].sort((a, b) => a - b));
+    const toCards = seg => seg.map(p => byPos.get(p));
+    segs.filter(g => g.length >= r.minMeld).forEach(g => out.push(toCards(g)));
+    if (wild) {
+      segs.filter(g => g.length === r.minMeld - 1).forEach(g => out.push(toCards(g).concat([wild])));
+      for (let i = 0; i + 1 < segs.length; i++) {
+        const a = segs[i], b = segs[i + 1];
+        if (b[0] - a[a.length - 1] === 2) out.push(toCards(a.concat(b)).concat([wild]));
+      }
+    }
+  }
+  return out
+    .filter(cs => new Set(cs.map(c => c.id)).size === cs.length && validate(cs, r))
+    .sort((a, b) => (a.some(isWild) - b.some(isWild)) || (b.length - a.length));
+}
+function aiWantsDiscard(st) {
+  const top = st.discard[st.discard.length - 1];
+  if (!top) return false;
+  const hand = st.hands[st.current], r = st.rules;
+  if (hand.length === 1 && st.discard.length === 1) return false;
+  if (isWild(top)) return true;
+  if (st.melds[curTeam(st)].some(m => canAdd([top], m, r))) return true;
+  if (meldCandidates(hand.concat([top]), r).some(cs => cs.includes(top) && !cs.some(isWild))) return true;
+  return st.discard.length >= 5;
+}
+// Irgendein erlaubter Zug (neue Kombination oder Anlegen), auch mit 2ern.
+function findAnyMove(st) {
+  const r = st.rules, hand = st.hands[st.current], t = curTeam(st);
+  for (const cs of meldCandidates(hand, r)) {
+    const mv = { t: "meld", ids: cs.map(c => c.id) };
+    if (isLegal(st, mv)) return mv;
+  }
+  const twos = hand.filter(isWild);
+  if (twos.length >= r.minMeld) {
+    const mv = { t: "meld", ids: twos.slice(0, r.minMeld).map(c => c.id) };
+    if (isLegal(st, mv)) return mv;
+  }
+  for (const c of hand) for (const m of st.melds[t]) {
+    const mv = { t: "add", meld: m.id, ids: [c.id] };
+    if (canAdd([c], m, r) && isLegal(st, mv)) return mv;
+  }
+  return null;
+}
+// Der Computer nimmt die Ablage nur, wenn er danach sicher etwas auslegen kann.
+function aiCanUseDiscard(st) {
+  const trial = clone(st);
+  trial.hands[trial.current].push(...trial.discard);
+  trial.discard = [];
+  trial.phase = "play";
+  return !!findAnyMove(trial);
+}
+function aiNextMove(st) {
+  const r = st.rules, hand = st.hands[st.current], t = curTeam(st);
+  for (const c of hand) {
+    if (isWild(c)) continue;
+    for (const m of st.melds[t]) {
+      const mv = { t: "add", meld: m.id, ids: [c.id] };
+      if (canAdd([c], m, r) && isLegal(st, mv)) return mv;
+    }
+  }
+  for (const cs of meldCandidates(hand, r)) {
+    const mv = { t: "meld", ids: cs.map(c => c.id) };
+    if (isLegal(st, mv)) return mv;
+  }
+  const wild = hand.find(isWild);
+  if (wild && !hasProject(st, t)) {
+    for (const m of st.melds[t]) {
+      if (m.wild !== 0 || m.cards.length !== r.projectSize - 1) continue;
+      const mv = { t: "add", meld: m.id, ids: [wild.id] };
+      if (canAdd([wild], m, r) && isLegal(st, mv)) return mv;
+    }
+  }
+  return null;
+}
+function aiChooseDiscard(st) {
+  const r = st.rules, hand = st.hands[st.current], t = curTeam(st);
+  const options = hand.filter(c => !(st.turn === 0 && c.id === st.firstDrawId));
+  const keep = c => {
+    if (isWild(c)) return 1000;
+    const others = hand.filter(o => o.id !== c.id && !isWild(o));
+    let s = 15 * others.filter(o => o.rank === c.rank).length;
+    s += 10 * others.filter(o => o.suit === c.suit && Math.abs(o.rank - c.rank) <= 2).length;
+    if (st.melds[t].some(m => canAdd([c], m, r))) s += 40;
+    if (st.melds[1 - t].some(m => canAdd([c], m, r))) s += 30;
+    return s - cardValue(c) / 5;
+  };
+  options.sort((a, b) => keep(a) - keep(b));
+  return options.length ? options[0].id : null;
+}
+
+// ---------- Oberfläche ----------
+const app = document.getElementById("app");
+const ui = { screen: "start", mode: "teams", close: 1, st: null, me: 0, selected: new Set(), msg: null, thinking: false, gen: 0,
+  name: localStorage.getItem("brk-name") || "", code: "" };
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+
+function cardHTML(c, extra = "") {
+  if (isJoker(c)) return `<div class="card joker ${extra}" data-card="${c.id}" aria-label="جوكر">
+    <div class="ix"><b>★</b></div><div class="jk">جوكر</div><div class="pip">★</div></div>`;
+  return `<div class="card ${isRed(c) ? "red" : ""} ${extra}" data-card="${c.id}" aria-label="${cardLabel(c)}">
+    <div class="ix"><b>${rankLabel(c.rank)}</b><i>${SUITS[c.suit]}</i></div>
+    <div class="pip">${SUITS[c.suit]}</div>${isWild(c) ? '<div class="wild">✦</div>' : ""}</div>`;
+}
+const backs = n => Array.from({ length: n }, () => '<div class="back"></div>').join("");
+
+const LANDSCAPE = window.matchMedia("(orientation: landscape) and (max-height: 560px)");
+function render() {
+  app.classList.toggle("table", ui.screen === "table");
+  // Während eine Karte gezogen wird, nicht neu zeichnen (Computer-Züge laufen weiter).
+  if (net && net.host) hostBroadcast();
+  if (drag && drag.active) { drag.pendingRender = true; return; }
+  if (ui.screen === "start") return renderStart();
+  if (ui.screen === "join") return renderJoin();
+  if (ui.screen === "lobby") return renderLobby();
+  renderTable();
+}
+
+// Überlappung so wählen, dass die ganze Hand in die Breite passt.
+function handOverlap(n) {
+  const cw = LANDSCAPE.matches ? 46 : window.innerHeight <= 700 ? 52 : 58;
+  if (n <= 1) return 0;
+  const width = Math.min(app.clientWidth || window.innerWidth, LANDSCAPE.matches ? 1000 : 560) - 36;
+  const step = Math.min(cw - 22, (width - cw) / (n - 1));
+  return Math.round(step - cw);
+}
+
+// Ablage: alle Karten sichtbar, die oberste ganz rechts.
+function discardOverlap(n) {
+  const cw = LANDSCAPE.matches ? 32 : 40;
+  if (n <= 1) return 0;
+  const full = app.clientWidth || window.innerWidth;
+  const width = LANDSCAPE.matches ? (Math.min(full, 1000) - 46) / 2 - 20 : Math.min(full, 560) - 56;
+  const step = Math.min(28, (width - cw) / (n - 1));
+  return Math.round(step - cw);
+}
+
+// ---------- Karten in der Hand ziehen ----------
+let drag = null;
+const LONG_PRESS_MS = 220, MOVE_THRESHOLD = 8;
+
+app.addEventListener("pointerdown", e => {
+  const el = e.target.closest(".hand .card");
+  if (!el || !ui.st) return;
+  const cards = [...app.querySelectorAll(".hand .card")];
+  const index = cards.indexOf(el);
+  const step = cards.length > 1 ? cards[1].getBoundingClientRect().left - cards[0].getBoundingClientRect().left : 0;
+  drag = { el, cards, index, target: index, step, startX: e.clientX, startY: e.clientY, active: false, pointerId: e.pointerId, timer: null };
+  drag.timer = setTimeout(() => startDrag(), LONG_PRESS_MS);
+  el.setPointerCapture?.(e.pointerId);
+});
+function startDrag() {
+  if (!drag || drag.active) return;
+  drag.active = true;
+  drag.el.classList.add("dragging");
+  drag.el.style.setProperty("--dy", "-22px");
+  navigator.vibrate?.(10);
+}
+app.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.pointerId) return;
+  const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+  if (!drag.active && Math.hypot(dx, dy) > MOVE_THRESHOLD) { clearTimeout(drag.timer); startDrag(); }
+  if (!drag.active) return;
+  e.preventDefault();
+  drag.el.style.setProperty("--dx", dx + "px");
+  const target = drag.step > 0 ? Math.max(0, Math.min(drag.cards.length - 1, Math.round(drag.index + dx / drag.step))) : drag.index;
+  if (target === drag.target) return;
+  drag.target = target;
+  drag.cards.forEach((c, i) => {
+    if (c === drag.el) return;
+    let shift = 0;
+    if (drag.index < target && i > drag.index && i <= target) shift = -drag.step;
+    if (target < drag.index && i >= target && i < drag.index) shift = drag.step;
+    c.style.setProperty("--dx", shift + "px");
+  });
+});
+function endDrag(e, cancelled) {
+  if (!drag || e.pointerId !== drag.pointerId) return;
+  clearTimeout(drag.timer);
+  const d = drag;
+  drag = null;
+  if (d.active) {
+    if (!cancelled && d.target !== d.index && ui.st) {
+      const hand = ui.st.hands[ui.me];
+      const [moved] = hand.splice(d.index, 1);
+      hand.splice(d.target, 0, moved);
+    }
+    render();
+  } else if (!cancelled && isHumanTurn()) {
+    // Kurzes Antippen: Karte auswählen
+    const id = Number(d.el.dataset.card);
+    ui.selected.has(id) ? ui.selected.delete(id) : ui.selected.add(id);
+    ui.msg = null;
+    render();
+  } else if (d.pendingRender) {
+    render();
+  }
+}
+app.addEventListener("pointerup", e => endDrag(e, false));
+app.addEventListener("pointercancel", e => endDrag(e, true));
+window.addEventListener("resize", () => { if (ui.screen === "table") render(); });
+function renderStart() {
+  app.innerHTML = `<div class="start">
+    <div class="fanned">${cardHTML({ id: -1, suit: 0, rank: 1 })}${cardHTML({ id: -2, suit: 1, rank: 2 })}${cardHTML({ id: -3, suit: 2, rank: 13 })}</div>
+    <div><h1>بوراكو ديرية</h1><p class="sub">نسخة دير الزور من لعبة بوراكو البرازيلية</p></div>
+    <div class="opts panel">
+      <div class="seg" role="group" aria-label="نوع اللعب">
+        <button id="mode-teams" class="${ui.mode === "teams" ? "on" : ""}" data-act="mode" data-v="teams">٢ ضد ٢</button>
+        <button id="mode-duel" class="${ui.mode === "duel" ? "on" : ""}" data-act="mode" data-v="duel">١ ضد ١</button>
+      </div>
+      <div class="seg" role="group" aria-label="شرط الختم">
+        <button id="close-1" class="${ui.close === 1 ? "on" : ""}" data-act="close" data-v="1" dir="ltr">200 + 100</button>
+        <button id="close-2" class="${ui.close === 2 ? "on" : ""}" data-act="close" data-v="2" dir="ltr">2×200 + 100</button>
+      </div>
+      <p class="goal-note">للختم: ${ui.close === 1 ? "مشروع 200 ومشروع 100" : "مشروعين 200 ومشروع 100"} · الهدف ${BASE_RULES.target} نقطة</p>
+    </div>
+    <div class="btn-col">
+      <button class="btn primary" data-act="start">العب ضد الكمبيوتر</button>
+      <button class="btn" data-act="host" ${ONLINE ? "" : "disabled"}>أنشئ غرفة أونلاين</button>
+      <button class="btn" data-act="joinscreen" ${ONLINE ? "" : "disabled"}>انضم إلى غرفة الأصدقاء</button>
+      ${savedHost() ? `<button class="btn" data-act="resume" ${ONLINE ? "" : "disabled"}>تابِع الغرفة <bdi dir="ltr">${esc(savedHost().code)}</bdi></button>` : ""}
+    </div>
+    ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
+    ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
+    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
+  </div>`;
+}
+function seatHTML(st, p, compact) {
+  const active = st.current === p && (st.phase === "draw" || st.phase === "play");
+  const n = st.hands[p].length, pl = st.players[p];
+  return `<div class="seat ${active ? "active" : ""} ${pl.offline ? "offline" : ""}"><span class="name">${esc(pl.name)}${pl.bot ? " 🤖" : ""}</span>
+    <div class="fan">${backs(Math.min(n, compact ? 4 : 8))}</div><small>${n} أوراق</small></div>`;
+}
+function meldsHTML(st, t, title) {
+  const myTurn = isHumanTurn() && st.phase === "play" && t === teamOf(ui.me) && ui.selected.size > 0;
+  const items = st.melds[t].map(m => {
+    const proj = isProject(m, st.rules);
+    const tag = proj ? `<span class="tag ${m.wild === 0 ? "clean" : ""}">مشروع ${meldBonus(m, st.rules)}</span>` : "";
+    return `<button class="meld ${myTurn ? "target" : ""}" data-act="add" data-meld="${m.id}" ${t === teamOf(ui.me) ? "" : 'tabindex="-1"'}>
+      <div class="cards">${m.cards.map(c => cardHTML(c)).join("")}</div>${tag}</button>`;
+  }).join("");
+  return `<h3>${title}${st.tookPot[t] ? "<span>أخذ الـ100</span>" : ""}</h3>
+    ${items ? `<div class="meld-row">${items}</div>` : '<div class="empty">لا يوجد تنزيل بعد</div>'}`;
+}
+function isHumanTurn() {
+  const st = ui.st;
+  return st && st.current === ui.me && !ui.thinking && (st.phase === "draw" || st.phase === "play");
+}
+function statusText(st) {
+  if (st.phase === "roundOver") return "انتهت الجولة";
+  if (st.phase === "gameOver") return "انتهت اللعبة";
+  if (st.current !== ui.me) {
+    const p = st.players[st.current];
+    return p.name + (p.offline && !p.bot ? ": انقطع الاتصال، ننتظر عودته …" : ": دوره …");
+  }
+  if (st.phase === "play" && st.mustMeld) return "أخذت كومة الحرق: نزّل شيئاً أو أضف على تنزيل. إذا لم تستطع، أرجِع الكومة واسحب ورقة" + (st.rules.returnPenalty ? " (−" + st.rules.returnPenalty + ")" : "") + ".";
+  return st.phase === "draw" ? "اسحب من الكومة أو خذ كومة الحرق." : "نزّل، أو أضف على تنزيل (اضغط عليه)، أو ارمِ ورقة.";
+}
+function renderTable() {
+  const st = ui.st, four = st.players.length === 4, r = st.rules, n = st.players.length;
+  const rel = k => (ui.me + k) % n, us = teamOf(ui.me), them = 1 - us;
+  const cur = st.players[st.current];
+  const canBot = net && net.host && cur.human && cur.offline && !cur.bot && (st.phase === "draw" || st.phase === "play");
+  const canDraw = isHumanTurn() && st.phase === "draw";
+  const canPlay = isHumanTurn() && st.phase === "play";
+  const top = st.discard[st.discard.length - 1];
+  const hand = st.hands[ui.me];
+  const meldScroll = app.querySelector(".melds")?.scrollTop ?? null;
+
+  let html = `<div class="top">
+      <button class="icon-btn" data-act="quit" aria-label="إنهاء اللعبة">✕</button>
+      <div class="scores">
+        <div class="score panel us"><small>نحن</small><b>${st.scores[us]}</b></div>
+        <div class="score panel"><small>الخصم</small><b>${st.scores[them]}</b></div>
+      </div>
+      <span class="goal">${net ? `<span class="net-badge">${net.host ? "المضيف · " : ""}${netBadge()}</span><br>` : ""}الهدف ${r.target}<br>الختم <bdi dir="ltr">${r.closeClean === 1 ? "200+100" : "2×200+100"}</bdi></span>
+    </div>
+    <div class="board">${seatHTML(st, rel(four ? 2 : 1), false)}
+    <div class="mid">
+      ${four ? seatHTML(st, rel(3), true) : "<span></span>"}
+      <div class="piles">
+        <button class="pile ${canDraw && st.stock.length ? "ready" : ""}" data-act="draw" ${canDraw ? "" : "disabled"} aria-label="اسحب من الكومة">
+          ${st.stock.length ? `<div class="stack">${backs(2)}</div>` : '<div class="slot"></div>'}<small>السحب ${st.stock.length}</small></button>
+        <div class="pile" aria-label="كومتا الـ100"><div class="pots">${[0, 1].map(i => i < st.pots.length ? '<div class="back"></div>' : '<div class="slot"></div>').join("")}</div><small>الـ100</small></div>
+      </div>
+      ${four ? seatHTML(st, rel(1), true) : "<span></span>"}
+    </div></div>
+    <button class="discard-row ${canDraw && top ? "ready" : ""}" data-act="take" ${canDraw && top ? "" : "disabled"} aria-label="خذ كومة الحرق">
+      <span class="discard-label">كومة الحرق ${st.discard.length}${canDraw && top ? " · اضغط لأخذها" : ""}</span>
+      <div class="discard-cards" style="--overlap:${discardOverlap(st.discard.length)}px">
+        ${st.discard.length ? st.discard.map(c => cardHTML(c)).join("") : '<div class="slot"></div>'}</div>
+    </button>
+    <div class="melds panel">${meldsHTML(st, them, "الخصم")}<hr>${meldsHTML(st, us, "نحن")}</div>
+    <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
+    <div class="actions">
+      <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
+      ${canPlay && st.mustMeld
+        ? `<button class="btn" data-act="return">أرجِع الكومة واسحب${r.returnPenalty ? ` (−${r.returnPenalty})` : ""}</button>`
+        : `<button class="btn" data-act="discard" ${canPlay && ui.selected.size === 1 ? "" : "disabled"}>ارمِ</button>`}
+      ${canBot ? '<button class="btn" data-act="botseat">دع الكمبيوتر يلعب عنه</button>' : ""}
+    </div></div>
+    <div class="hand" style="--overlap:${handOverlap(hand.length)}px"><div class="hand-inner">
+      ${hand.map(c => cardHTML(c, ui.selected.has(c.id) ? "sel" : "")).join("")}</div></div>`;
+
+  if (st.phase === "roundOver" || st.phase === "gameOver") html += summaryHTML(st);
+  app.innerHTML = html;
+  if (meldScroll !== null) app.querySelector(".melds").scrollTop = meldScroll;
+}
+function summaryHTML(st) {
+  const us = teamOf(ui.me), them = 1 - us;
+  const res = [st.lastRound.teams[us], st.lastRound.teams[them]];
+  const row = (label, f) => `<tr><td>${label}</td><td>${f(res[0])}</td><td>${f(res[1])}</td></tr>`;
+  const title = st.phase === "gameOver" ? (st.winner === us ? "مبروك، فزتم!" : "فاز الخصم") : "انتهت الجولة";
+  const guest = net && !net.host;
+  return `<div class="overlay"><div class="summary">
+    <h2>${title}</h2>
+    <table>
+      <tr><th></th><th>نحن</th><th>الخصم</th></tr>
+      ${row("أوراق على الطاولة", s => s.meld)}
+      ${row("المشاريع", s => s.bonus)}
+      ${row("الختم", s => s.out)}
+      ${row("أوراق باليد", s => -s.hand)}
+      ${row("بدون 100", s => -s.noPot)}
+      ${row("بدون مشروع", s => -s.noProject)}
+      ${st.rules.returnPenalty ? row("إرجاع كومة الحرق", s => -s.returned) : ""}
+      <tr class="sum"><td>هذه الجولة</td><td>${res[0].total}</td><td>${res[1].total}</td></tr>
+      <tr class="sum"><td>المجموع</td><td>${st.scores[us]}</td><td>${st.scores[them]}</td></tr>
+    </table>
+    ${st.phase === "gameOver" ? '<button class="btn primary" data-act="quit">لعبة جديدة</button>'
+      : guest ? '<button class="btn" disabled>بانتظار المضيف لبدء الجولة التالية …</button>'
+      : '<button class="btn primary" data-act="next">الجولة التالية</button>'}
+  </div></div>`;
+}
+
+function applyAction(st, a) {
+  if (a.a === "draw") return drawStock(st);
+  if (a.a === "take") return takeDiscard(st);
+  if (a.a === "return") return returnDiscard(st);
+  if (a.a === "lay") return layMeld(st, a.ids);
+  if (a.a === "add") return addToMeld(st, a.meld, a.ids);
+  if (a.a === "discard") return discardCard(st, a.id);
+  fail("حركة غير معروفة.");
+}
+function humanAction(a) {
+  if (!isHumanTurn()) return;
+  if (net && !net.host) { ui.msg = null; return netSend({ t: "act", a }); }
+  try {
+    applyAction(ui.st, a);
+    ui.msg = null;
+    const ids = new Set(ui.st.hands[ui.me].map(c => c.id));
+    ui.selected = new Set([...ui.selected].filter(id => ids.has(id)));
+  } catch (e) {
+    if (!(e instanceof GameError)) throw e;
+    ui.msg = e.message;
+  }
+  render();
+  runComputer();
+}
+const selectedInHandOrder = () => ui.st.hands[ui.me].map(c => c.id).filter(id => ui.selected.has(id));
+
+async function runComputer() {
+  const st = ui.st;
+  if (net && !net.host) return;
+  if (!st || ui.thinking || (st.players[st.current].human && !st.players[st.current].bot) || !(st.phase === "draw" || st.phase === "play")) return;
+  ui.thinking = true;
+  const gen = ui.gen;
+  const alive = () => gen === ui.gen;
+  const step = async () => { render(); await sleep(650); return alive(); };
+  try {
+    while ((st.phase === "draw" || st.phase === "play") && (!st.players[st.current].human || st.players[st.current].bot)) {
+      if (!(await step())) return;
+      if (aiWantsDiscard(st) && aiCanUseDiscard(st)) { try { takeDiscard(st); } catch (e) {} }
+      if (st.phase === "draw") drawStock(st);
+      let mv;
+      if (st.mustMeld && !aiNextMove(st)) {
+        if (!(await step())) return;
+        if ((mv = findAnyMove(st))) mv.t === "meld" ? layMeld(st, mv.ids) : addToMeld(st, mv.meld, mv.ids);
+        else returnDiscard(st);
+      }
+      while ((mv = aiNextMove(st))) {
+        if (!(await step())) return;
+        mv.t === "meld" ? layMeld(st, mv.ids) : addToMeld(st, mv.meld, mv.ids);
+      }
+      if (!(await step())) return;
+      const id = aiChooseDiscard(st);
+      try { discardCard(st, id); }
+      catch (e) {
+        for (const c of st.hands[st.current]) { try { discardCard(st, c.id); break; } catch (e2) {} }
+      }
+    }
+  } finally {
+    if (alive()) { ui.thinking = false; render(); }
+  }
+}
+
+function startGame() {
+  netLeave();
+  ui.me = 0;
+  const players = ui.mode === "teams"
+    ? [{ name: "أنت", human: true }, { name: "اليمين" }, { name: "الشريك" }, { name: "اليسار" }]
+    : [{ name: "أنت", human: true }, { name: "الكمبيوتر" }];
+  const rules = Object.assign({}, BASE_RULES, ui.close === 2 ? { closeClean: 2, closeTotal: 3 } : { closeClean: 1, closeTotal: 2 });
+  ui.gen++; ui.thinking = false;
+  ui.st = newGame(players, rules);
+  ui.screen = "table"; ui.selected = new Set(); ui.msg = null;
+  render();
+  runComputer();
+}
+
+app.addEventListener("click", e => {
+  if (e.target.closest(".hand .card")) return; // läuft über die Pointer-Events oben
+  const el = e.target.closest("[data-act]");
+  if (!el || el.disabled) return;
+  const act = el.dataset.act;
+  if (act === "mode") { ui.mode = el.dataset.v; return render(); }
+  if (act === "close") { ui.close = Number(el.dataset.v); return render(); }
+  if (act === "start") return startGame();
+  if (act === "quit") {
+    if (net && net.host && (!ui.st || ui.st.phase === "gameOver")) localStorage.removeItem("brk-host");
+    netLeave(); ui.gen++; ui.thinking = false; ui.screen = "start"; ui.st = null; ui.me = 0; return render(); }
+  if (act === "next") {
+    if (net && !net.host) return;
+    startRound(ui.st); ui.selected = new Set(); ui.msg = null; render(); return runComputer();
+  }
+  if (act === "draw") return humanAction({ a: "draw" });
+  if (act === "take") return humanAction({ a: "take" });
+  if (act === "return") { ui.selected = new Set(); return humanAction({ a: "return" }); }
+  if (act === "lay") return humanAction({ a: "lay", ids: selectedInHandOrder() });
+  if (act === "discard") return humanAction({ a: "discard", id: [...ui.selected][0] });
+  if (act === "add") {
+    if (!ui.selected.size) return;
+    return humanAction({ a: "add", meld: el.dataset.meld, ids: selectedInHandOrder() });
+  }
+  if (onlineClick(act, el) !== false) return;
+});
+
+
+// ---------- Online mit Freunden ----------
+// Peer-to-Peer über PeerJS: Das Gerät des Gastgebers hält den echten Spielstand und prüft alle Züge.
+// Die anderen schicken nur ihre Züge und bekommen den Tisch zurück, ohne fremde Handkarten.
+const ONLINE = typeof Peer !== "undefined";
+const NET_PREFIX = "brk-deir-";
+const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const urlParams = new URLSearchParams(location.search);
+let net = null;
+if (urlParams.get("room")) { ui.code = urlParams.get("room").toUpperCase(); ui.screen = "join"; }
+
+function clientId() {
+  let id = localStorage.getItem("brk-cid");
+  if (!id) { id = Math.random().toString(36).slice(2, 12); localStorage.setItem("brk-cid", id); }
+  return id;
+}
+function peerOptions() {
+  // Zum Testen mit eigenem PeerServer: ?peerhost=localhost:9000
+  const h = urlParams.get("peerhost");
+  if (!h) return { debug: 0 };
+  const [host, port] = h.split(":");
+  return { host, port: Number(port) || 443, path: "/", secure: !port || port === "443", debug: 1 };
+}
+const newCode = () => Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join("");
+const inviteLink = code => location.origin + location.pathname + "?room=" + code;
+const seatCount = () => ui.mode === "teams" ? 4 : 2;
+const SEAT_NAMES = { 4: ["المقعد ١", "المقعد ٢", "المقعد ٣", "المقعد ٤"], 2: ["المقعد ١", "المقعد ٢"] };
+function savedHost() {
+  try { return JSON.parse(localStorage.getItem("brk-host")); } catch (e) { return null; }
+}
+function netBadge() {
+  if (!net) return "";
+  if (net.host) return net.status === "open" ? "متصل" : "جارِ الاتصال …";
+  return net.status === "open" ? "متصل" : "انقطع الاتصال، جارِ إعادة المحاولة …";
+}
+
+// Was ein Mitspieler sehen darf: eigene Hand ja, fremde Hände und Stapel nur als Anzahl.
+function redact(st, seat) {
+  const c = clone(st);
+  c.hands = st.hands.map((h, p) => p === seat ? h : h.map(() => 0));
+  c.stock = st.stock.map(() => 0);
+  c.pots = st.pots.map(p => p.map(() => 0));
+  c.players = st.players.map(p => ({ name: p.name, human: !!p.human, offline: !!p.offline, bot: !!p.bot }));
+  return c;
+}
+
+// ----- Gastgeber -----
+function hostRoom(saved) {
+  netLeave();
+  ui.st = null; ui.me = 0;
+  net = {
+    host: true, status: "connecting", code: saved ? saved.code : newCode(), conns: new Map(), sent: new Map(),
+    seats: saved ? saved.seats : [{ name: ui.name || "المضيف", cid: "host" }, null, null, null].slice(0, seatCount()),
+    pick: null, tries: 0,
+  };
+  if (saved) {
+    ui.mode = saved.mode; ui.close = saved.close; ui.st = saved.st; ui.me = saved.me || 0;
+    if (ui.st) ui.st.players.forEach(p => { if (p.cid && p.cid !== "host") p.offline = true; });
+    net.seats.forEach(s => { if (s && s.cid !== "host") s.online = false; });
+  }
+  ui.screen = ui.st ? "table" : "lobby";
+  ui.selected = new Set(); ui.msg = null;
+  hostOpen();
+  render();
+  if (ui.st) runComputer();
+}
+function hostOpen() {
+  const me = net, peer = new Peer(NET_PREFIX + me.code, peerOptions());
+  me.peer = peer;
+  peer.on("open", () => { if (net !== me) return; me.status = "open"; me.tries = 0; render(); });
+  peer.on("connection", conn => {
+    conn.on("data", d => { if (net === me) hostOnData(conn, d); });
+    conn.on("close", () => { if (net === me) hostOnClose(conn); });
+    conn.on("error", () => { if (net === me) hostOnClose(conn); });
+  });
+  peer.on("disconnected", () => setTimeout(() => { if (net === me && !peer.destroyed) peer.reconnect(); }, 1500));
+  peer.on("error", e => {
+    if (net !== me) return;
+    if (e.type === "unavailable-id" && me.tries++ < 20) {
+      // Nach einem Neuladen ist der Code beim Server noch kurz belegt.
+      peer.destroy(); setTimeout(() => { if (net === me) hostOpen(); }, 3000);
+    } else if (e.type === "network" || e.type === "server-error" || e.type === "socket-error" || e.type === "socket-closed") {
+      me.status = "connecting"; render();
+    } else if (e.type !== "peer-unavailable") { me.error = e.type; render(); }
+  });
+  if (!me.ping) me.ping = setInterval(() => {
+    if (net !== me) return clearInterval(me.ping);
+    const now = Date.now();
+    for (const conn of me.conns.values()) {
+      if (now - (conn.heard || now) > 15000) { conn.close(); hostOnClose(conn); continue; }
+      if (conn.open) conn.send({ t: "ping" });
+    }
+  }, 5000);
+}
+const hostPlayer = cid => ui.st ? ui.st.players.findIndex(p => p.cid === cid) : -1;
+function hostOnData(conn, d) {
+  conn.heard = Date.now();
+  if (!d || typeof d !== "object") return;
+  if (d.t === "hello") {
+    const cid = String(d.cid || "").slice(0, 20), name = String(d.name || "").trim().slice(0, 16) || "صديق";
+    if (!cid || cid === "host") return;
+    if (ui.st) {
+      const idx = hostPlayer(cid);
+      if (idx < 0) { conn.send({ t: "full", msg: "اللعبة بدأت بدون هذا الجهاز." }); return; }
+      const p = ui.st.players[idx];
+      p.offline = false; p.bot = false; p.name = name;
+    } else {
+      let idx = net.seats.findIndex(s => s && s.cid === cid);
+      if (idx < 0) idx = net.seats.findIndex(s => !s);
+      if (idx < 0) { conn.send({ t: "full", msg: "الغرفة ممتلئة." }); return; }
+      net.seats[idx] = { name, cid, online: true };
+    }
+    const old = net.conns.get(cid);
+    if (old && old !== conn) { old.cid = null; old.close(); }
+    conn.cid = cid;
+    net.conns.set(cid, conn);
+    net.sent.delete(conn);
+    render();
+    runComputer();
+    return;
+  }
+  if (d.t === "act") {
+    const st = ui.st, seat = hostPlayer(conn.cid);
+    if (!st || seat < 0) return;
+    if (st.current !== seat || ui.thinking || !(st.phase === "draw" || st.phase === "play")) {
+      conn.send({ t: "err", msg: "ليس دورك." }); return;
+    }
+    try { applyAction(st, d.a || {}); }
+    catch (e) {
+      if (!(e instanceof GameError)) { console.error(e); e = new GameError("حدث خطأ."); }
+      conn.send({ t: "err", msg: e.message });
+      return;
+    }
+    const ids = new Set(st.hands[ui.me].map(c => c.id));
+    ui.selected = new Set([...ui.selected].filter(id => ids.has(id)));
+    render();
+    runComputer();
+  }
+}
+function hostOnClose(conn) {
+  if (!conn.cid || net.conns.get(conn.cid) !== conn) return;
+  net.conns.delete(conn.cid);
+  const cid = conn.cid;
+  conn.cid = null;
+  if (ui.st) { const i = hostPlayer(cid); if (i >= 0) ui.st.players[i].offline = true; }
+  else {
+    // Im Warteraum wird der Platz wieder frei.
+    const i = net.seats.findIndex(s => s && s.cid === cid);
+    if (i >= 0) net.seats[i] = null;
+  }
+  render();
+}
+function hostBroadcast() {
+  if (!net || !net.host) return;
+  const lobby = !ui.st;
+  for (const conn of net.conns.values()) {
+    if (!conn.open) continue;
+    let msg;
+    if (lobby) msg = { t: "lobby", code: net.code, mode: ui.mode, close: ui.close,
+      seats: net.seats.map(s => s && { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, host: s.cid === "host", you: s.cid === conn.cid }) };
+    else { const seat = hostPlayer(conn.cid); msg = { t: "state", seat, st: redact(ui.st, seat) }; }
+    const json = JSON.stringify(msg);
+    if (net.sent.get(conn) === json) continue;
+    net.sent.set(conn, json);
+    conn.send(msg);
+  }
+  try {
+    localStorage.setItem("brk-host", JSON.stringify({ code: net.code, seats: net.seats.map(s => s && { name: s.name, cid: s.cid }),
+      mode: ui.mode, close: ui.close, st: ui.st, me: ui.me }));
+  } catch (e) {}
+}
+function hostSetMode(mode) {
+  const n = mode === "teams" ? 4 : 2, people = net.seats.filter(Boolean);
+  if (people.length > n) { ui.msg = "في الغرفة " + people.length + " لاعبين، لا يمكن اللعب ١ ضد ١."; return; }
+  ui.mode = mode;
+  net.seats = Array.from({ length: n }, (_, i) => net.seats[i] || null);
+  // Wer auf Platz 3/4 saß, rutscht nach vorne.
+  people.forEach(p => { if (!net.seats.includes(p)) net.seats[net.seats.indexOf(null)] = p; });
+  ui.msg = null;
+}
+function hostStart() {
+  const rules = Object.assign({}, BASE_RULES, ui.close === 2 ? { closeClean: 2, closeTotal: 3 } : { closeClean: 1, closeTotal: 2 });
+  let bots = 0;
+  const players = net.seats.map(s => s
+    ? { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, human: true, cid: s.cid, offline: s.cid !== "host" && !net.conns.has(s.cid) }
+    : { name: "كمبيوتر " + (++bots) });
+  ui.me = net.seats.findIndex(s => s && s.cid === "host");
+  ui.gen++; ui.thinking = false;
+  ui.st = newGame(players, rules);
+  ui.screen = "table"; ui.selected = new Set(); ui.msg = null;
+  render();
+  runComputer();
+}
+
+// ----- Mitspieler -----
+function joinRoom(code) {
+  netLeave();
+  net = { host: false, status: "connecting", code, lobby: null };
+  ui.st = null; ui.screen = "lobby"; ui.selected = new Set(); ui.msg = null; ui.notice = null;
+  clientPeer(net);
+  render();
+}
+function clientPeer(me) {
+  const peer = new Peer(peerOptions());
+  me.peer = peer;
+  peer.on("open", () => { if (net === me) clientConnect(me); });
+  peer.on("disconnected", () => setTimeout(() => { if (net === me && !peer.destroyed) peer.reconnect(); }, 1500));
+  peer.on("error", e => {
+    if (net !== me) return;
+    if (e.type === "peer-unavailable") me.noRoom = true;
+    me.status = "lost"; render(); clientRetry(me);
+  });
+  if (!me.ping) me.ping = setInterval(() => {
+    if (net !== me) return clearInterval(me.ping);
+    if (me.conn && me.conn.open) {
+      if (Date.now() - me.heard > 15000) { me.conn.close(); clientLost(me); }
+      else me.conn.send({ t: "ping" });
+    }
+  }, 5000);
+}
+function clientConnect(me) {
+  if (me.conn) { me.conn.removeAllListeners?.(); me.conn.close(); }
+  const conn = me.peer.connect(NET_PREFIX + me.code, { reliable: true });
+  me.conn = conn;
+  conn.on("open", () => {
+    if (net !== me || me.conn !== conn) return;
+    me.status = "open"; me.noRoom = false; me.heard = Date.now();
+    conn.send({ t: "hello", name: ui.name, cid: clientId() });
+    render();
+  });
+  conn.on("data", d => { if (net === me && me.conn === conn) clientOnData(me, d); });
+  conn.on("close", () => { if (net === me && me.conn === conn) clientLost(me); });
+  conn.on("error", () => { if (net === me && me.conn === conn) clientLost(me); });
+}
+function clientLost(me) {
+  me.status = "lost"; render(); clientRetry(me);
+}
+function clientRetry(me, now) {
+  if (me.full || me.retry) return;
+  me.retry = setTimeout(() => {
+    me.retry = null;
+    if (net !== me || me.status === "open") return;
+    if (me.peer.destroyed) clientPeer(me);
+    else if (me.peer.disconnected) { me.peer.reconnect(); setTimeout(() => net === me && me.status !== "open" && !me.peer.disconnected && clientConnect(me), 1000); }
+    else clientConnect(me);
+    clientRetry(me);
+  }, now ? 0 : 3000);
+}
+// iPhone trennt die Verbindung, wenn Safari im Hintergrund ist: beim Zurückkommen gleich neu verbinden.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !net) return;
+  if (net.host) { if (net.peer && net.peer.disconnected && !net.peer.destroyed) net.peer.reconnect(); }
+  else if (net.status !== "open") { clearTimeout(net.retry); net.retry = null; clientRetry(net, true); }
+});
+function clientOnData(me, d) {
+  me.heard = Date.now();
+  if (!d || typeof d !== "object") return;
+  if (d.t === "lobby") { me.lobby = d; ui.st = null; ui.screen = "lobby"; render(); }
+  else if (d.t === "state") {
+    // Eigene Sortierung der Hand behalten.
+    const old = ui.st ? ui.st.hands[ui.me].map(c => c.id) : [];
+    const pos = new Map(old.map((id, i) => [id, i]));
+    const hand = d.st.hands[d.seat];
+    d.st.hands[d.seat] = hand.slice().sort((a, b) => (pos.has(a.id) ? pos.get(a.id) : 1e3 + hand.indexOf(a)) - (pos.has(b.id) ? pos.get(b.id) : 1e3 + hand.indexOf(b)));
+    if (!ui.st || ui.st.phase !== d.st.phase || ui.st.current !== d.st.current) ui.msg = null;
+    ui.st = d.st; ui.me = d.seat; ui.screen = "table";
+    const ids = new Set(ui.st.hands[ui.me].map(c => c.id));
+    ui.selected = new Set([...ui.selected].filter(id => ids.has(id)));
+    render();
+  }
+  else if (d.t === "err") { ui.msg = String(d.msg); render(); }
+  else if (d.t === "full") { me.full = true; netLeave(); ui.notice = String(d.msg); ui.screen = "start"; ui.st = null; render(); }
+}
+function netSend(msg) {
+  if (net && net.conn && net.conn.open) net.conn.send(msg);
+  else { ui.msg = "لا يوجد اتصال الآن، جرّب بعد لحظة."; render(); }
+}
+function netLeave() {
+  if (!net) return;
+  const me = net;
+  net = null;
+  clearInterval(me.ping); clearTimeout(me.retry);
+  try { me.peer && me.peer.destroy(); } catch (e) {}
+}
+
+// ----- Bildschirme -----
+function nameField() {
+  return `<label class="field">اسمك<input id="in-name" maxlength="16" autocomplete="nickname" value="${esc(ui.name)}" placeholder="مثلاً: أبو أحمد"></label>`;
+}
+function renderJoin() {
+  app.innerHTML = `<div class="start">
+    <div><h1>انضم إلى غرفة</h1><p class="sub">اكتب الكود الذي أرسله لك صديقك</p></div>
+    <div class="opts panel">
+      ${nameField()}
+      <label class="field">كود الغرفة<input id="in-code" class="code" maxlength="5" autocomplete="off" autocapitalize="characters" value="${esc(ui.code)}" placeholder="ABCDE"></label>
+      ${ui.msg ? `<p class="net-note err">${esc(ui.msg)}</p>` : ""}
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" data-act="join" ${ONLINE ? "" : "disabled"}>انضم</button>
+      <button class="btn" data-act="quit">رجوع</button>
+    </div>
+  </div>`;
+}
+function lobbySeatsHTML(seats, host) {
+  const n = seats.length;
+  return `<ul class="seats">${seats.map((s, i) => {
+    const team = n === 4 ? `<span class="team">فريق ${i % 2 ? "ب" : "أ"}</span>` : "";
+    const who = s ? esc(s.name) + (s.host ? " · المضيف" : "") + (s.you ? " · أنت" : "") : '<small>كمبيوتر (ينتظر صديقاً)</small>';
+    return `<li><button data-act="seat" data-i="${i}" class="${host && net.pick === i ? "pick" : ""}" ${host ? "" : "disabled"}>
+      <span>${who}</span>${team}</button></li>`;
+  }).join("")}</ul>`;
+}
+function renderLobby() {
+  const host = net && net.host;
+  if (!net) { ui.screen = "start"; return renderStart(); }
+  if (!host && !net.lobby) {
+    app.innerHTML = `<div class="start">
+      <div><h1>الغرفة <bdi dir="ltr">${esc(net.code)}</bdi></h1>
+      <p class="sub">${net.noRoom ? "لم نجد هذه الغرفة بعد. تأكد من الكود، أو انتظر حتى يفتحها المضيف …" : "جارِ الاتصال …"}</p></div>
+      <button class="btn" data-act="quit">رجوع</button></div>`;
+    return;
+  }
+  const L = host ? { code: net.code, mode: ui.mode, close: ui.close, seats: net.seats.map(s => s && { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, host: s.cid === "host", you: s.cid === "host" }) } : net.lobby;
+  const people = L.seats.filter(Boolean).length;
+  app.innerHTML = `<div class="start">
+    <div><p class="sub">كود الغرفة</p><p class="room-code">${esc(L.code)}</p>
+      <p class="sub">${host ? (net.status === "open" ? "أرسل الكود أو الرابط لأصدقائك" : "جارِ فتح الغرفة …") : (net.status === "open" ? "بانتظار المضيف ليبدأ اللعب …" : netBadge())}</p></div>
+    ${host ? `<div class="btn-row"><button class="btn" data-act="share">أرسل الدعوة</button><button class="btn" data-act="copy">انسخ الرابط</button></div>` : ""}
+    <div class="opts panel">
+      ${host ? `<div class="seg" role="group" aria-label="نوع اللعب">
+        <button class="${L.mode === "teams" ? "on" : ""}" data-act="lmode" data-v="teams">٢ ضد ٢</button>
+        <button class="${L.mode === "duel" ? "on" : ""}" data-act="lmode" data-v="duel">١ ضد ١</button></div>
+      <div class="seg" role="group" aria-label="شرط الختم">
+        <button class="${L.close === 1 ? "on" : ""}" data-act="lclose" data-v="1" dir="ltr">200 + 100</button>
+        <button class="${L.close === 2 ? "on" : ""}" data-act="lclose" data-v="2" dir="ltr">2×200 + 100</button></div>`
+      : `<p class="goal-note">${L.mode === "teams" ? "٢ ضد ٢" : "١ ضد ١"} · للختم: ${L.close === 1 ? "مشروع 200 ومشروع 100" : "مشروعين 200 ومشروع 100"}</p>`}
+      ${lobbySeatsHTML(L.seats, host)}
+      ${host ? `<p class="net-note">${L.seats.length === 4 ? "المقعد ١ و٣ فريق، و٢ و٤ فريق. " : ""}اضغط على مقعدين لتبديلهما. المقاعد الفارغة يلعبها الكمبيوتر.</p>` : ""}
+      ${host ? nameField() : ""}
+      ${ui.msg ? `<p class="net-note err">${esc(ui.msg)}</p>` : ""}
+    </div>
+    <div class="btn-row">
+      ${host ? `<button class="btn primary" data-act="lstart" ${people >= 2 ? "" : "disabled"}>ابدأ اللعب</button>` : ""}
+      <button class="btn" data-act="quit">${host ? "أغلق الغرفة" : "اخرج"}</button>
+    </div>
+  </div>`;
+}
+
+app.addEventListener("input", e => {
+  if (e.target.id === "in-name") {
+    ui.name = e.target.value.trim().slice(0, 16);
+    localStorage.setItem("brk-name", ui.name);
+    if (net && net.host && !ui.st) hostBroadcast();
+  }
+  if (e.target.id === "in-code") ui.code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+});
+function onlineClick(act, el) {
+  if (act === "host") { if (!ui.name) ui.name = ""; localStorage.removeItem("brk-host"); hostRoom(null); return; }
+  if (act === "resume") { const s = savedHost(); if (s) hostRoom(s); return; }
+  if (act === "joinscreen") { ui.screen = "join"; ui.msg = null; ui.notice = null; return render(); }
+  if (act === "join") {
+    if (!ui.name) { ui.msg = "اكتب اسمك أولاً."; return render(); }
+    if (ui.code.length !== 5) { ui.msg = "الكود من 5 أحرف."; return render(); }
+    return joinRoom(ui.code);
+  }
+  if (!net || !net.host) return false;
+  if (act === "lmode") { hostSetMode(el.dataset.v); return render(); }
+  if (act === "lclose") { ui.close = Number(el.dataset.v); return render(); }
+  if (act === "seat") {
+    const i = Number(el.dataset.i);
+    if (net.pick === null) net.pick = i;
+    else { const a = net.pick; [net.seats[a], net.seats[i]] = [net.seats[i], net.seats[a]]; net.pick = null; }
+    return render();
+  }
+  if (act === "share" || act === "copy") {
+    const url = inviteLink(net.code), text = "تعال نلعب بوراكو ديرية! كود الغرفة: " + net.code;
+    if (act === "share" && navigator.share) navigator.share({ title: "بوراكو ديرية", text, url }).catch(() => {});
+    else navigator.clipboard?.writeText(url).then(() => { ui.msg = "تم نسخ الرابط."; render(); }, () => { ui.msg = url; render(); });
+    return;
+  }
+  if (act === "lstart") return hostStart();
+  if (act === "botseat") {
+    const p = ui.st.players[ui.st.current];
+    p.bot = true; render(); return runComputer();
+  }
+  return false;
+}
+render();
+</script>
+</body>
+</html>
