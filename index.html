@@ -949,7 +949,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v33 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v34 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -984,7 +984,7 @@ function statusText(st) {
     const p = st.players[st.current];
     return p.name + (p.offline && !p.bot ? ": انقطع الاتصال، ننتظر عودته …" : ": دوره …");
   }
-  if (st.phase === "play" && st.mustMeld) return "أخذت كومة الحرق: نزّل شيئاً أو أضف على تنزيل. إذا لم تستطع، أرجِع الكومة واسحب ورقة" + (st.rules.returnPenalty ? " (−" + st.rules.returnPenalty + ")" : "") + ".";
+  if (st.phase === "play" && st.mustMeld) return "نزّل أو أضف على تنزيل، وإلا أرجِع الكومة.";
   return st.phase === "draw" ? "اسحب من الكومة أو خذ كومة الحرق." : "نزّل، أو أضف على تنزيل (اضغط عليه)، أو ارمِ ورقة.";
 }
 function renderTable() {
@@ -1029,7 +1029,7 @@ function renderTable() {
     <div class="actions">
       <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
       ${canPlay && st.mustMeld
-        ? `<button class="btn" data-act="return">أرجِع الكومة واسحب${r.returnPenalty ? ` (−${r.returnPenalty})` : ""}</button>`
+        ? `<button class="btn" data-act="return">أرجِع${r.returnPenalty ? ` (−${r.returnPenalty})` : ""}</button>`
         : `<button class="btn" data-act="discard" ${canPlay && ui.selected.size === 1 ? "" : "disabled"}>ارمِ</button>`}
       ${canBot ? '<button class="btn" data-act="botseat">دع الكمبيوتر يلعب عنه</button>' : ""}
     </div></div>
