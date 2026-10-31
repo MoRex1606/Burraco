@@ -163,7 +163,9 @@ button { font: inherit; color: inherit; }
 .hand .card.dragging { transition: none; z-index: 3; cursor: grabbing; box-shadow: 0 10px 22px rgba(0,0,0,.55); }
 
 /* Start und Wertung */
-.start { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }
+/* Start, Beitreten und Lobby: #app scrollt, wenn der Inhalt höher als der Bildschirm ist (z. B. Lobby auf dem iPhone). */
+#app:not(.table) { overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+.start { flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; padding-bottom: env(safe-area-inset-bottom, 0px); }
 .start .fanned { display: flex; --cw: 70px; }
 .start .fanned .card:nth-child(1) { transform: rotate(-14deg) translateX(14px); }
 .start .fanned .card:nth-child(2) { transform: translateY(-10px); z-index: 1; }
@@ -917,7 +919,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v26 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v27 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
