@@ -116,12 +116,13 @@ body:has(#app.table) { margin-top: 0; }
 
 .mid { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .piles { display: flex; gap: 12px; align-items: flex-end; }
-.pile { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; padding: 0; cursor: pointer; --cw: 48px; }
+.pile { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; padding: 0; cursor: pointer; --cw: 26px; }
+/* Ziehstapel nur minimal größer als die beiden 100er-Stapel (22px). */
 .pile:disabled { cursor: default; }
 .pile.ready .back, .pile.ready .card { box-shadow: 0 0 0 2px var(--brass), 0 0 14px rgba(220,180,98,.6); }
 .pile small { font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .stack { position: relative; }
-.stack .back:first-child { position: absolute; left: 2px; top: 2px; }
+.stack .back:first-child { position: absolute; left: 1px; top: 1px; }
 .pots { display: flex; gap: 4px; --cw: 22px; }
 .pots .slot { border-radius: 3px; }
 
@@ -204,7 +205,7 @@ body:has(#app.table) { margin-top: 0; }
 .summary td:first-child, .summary th:first-child { text-align: start; color: var(--ink-dim); font-weight: 400; }
 .summary tr.sum td { border-top: 1px solid var(--brass-dim); font-weight: 800; color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .hand .card { transition: none; } }
-@media (max-height: 700px) { .hand { --cw: 52px; } .seat { --cw: 24px; } .pile { --cw: 42px; } }
+@media (max-height: 700px) { .hand { --cw: 52px; } .seat { --cw: 24px; } }
 .summary { max-height: 100%; overflow-y: auto; }
 /* Hilfscontainer nur fürs Querformat; hochkant verhalten sie sich, als gäbe es sie nicht. */
 .board, .controls, .mside { display: contents; }
@@ -222,7 +223,6 @@ body:has(#app.table) { margin-top: 0; }
   .score { padding: 0 10px; }
   .board { grid-area: board; display: flex; align-items: center; justify-content: center; gap: 18px; }
   .seat { --cw: 24px; }
-  .pile { --cw: 30px; }
   .discard-row { grid-area: discard; padding: 2px 8px 4px; gap: 2px; }
   .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
   .melds { grid-area: melds; }
@@ -933,7 +933,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v30 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v31 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
