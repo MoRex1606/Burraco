@@ -1860,10 +1860,11 @@ function syncTimer(st) {
   st.timerKey = key;
   st.deadline = key ? Date.now() + turnMs(st) : null;
 }
-// Wer eine neue Auslage legt oder an eine bestehende anlegt, bekommt 10 Sekunden dazu, höchstens bis zur vollen Zugzeit (30 bzw. 20 Sekunden).
-const BONUS_MS = 10000;
+// Wer eine neue Auslage legt oder an eine bestehende anlegt, bekommt Zeit dazu, höchstens bis zur vollen Zugzeit:
+// عادي +10 Sekunden (bis 30), سريع +5 Sekunden (bis 20).
+const bonusMs = st => turnMs(st) <= 20000 ? 5000 : 10000;
 function addTurnTime(st) {
-  if (st.deadline && timerActive(st)) st.deadline = Math.min(st.deadline + BONUS_MS, Date.now() + turnMs(st));
+  if (st.deadline && timerActive(st)) st.deadline = Math.min(st.deadline + bonusMs(st), Date.now() + turnMs(st));
 }
 // Gäste rechnen mit der Uhr des Gastgebers (Abweichung kommt mit jeder Nachricht).
 const hostNow = () => Date.now() + (net && !net.host && net.skew || 0);
