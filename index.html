@@ -216,7 +216,10 @@ body:has(#app.table) { margin-top: 0; }
 @media (max-height: 700px) { .hand { --cw: 52px; } .seat { --cw: 24px; } }
 .summary { max-height: 100%; overflow-y: auto; }
 /* Hilfscontainer nur fürs Querformat; hochkant verhalten sie sich, als gäbe es sie nicht. */
-.board, .controls, .mside { display: contents; }
+.board, .mside { display: contents; }
+/* Statuszeile links neben den Tasten (Tasten rechts). */
+.controls { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; }
+.controls .status { flex: 1; min-width: 0; min-height: 0; }
 
 /* Querformat (Handy quer): Tisch links/rechts aufteilen, Hand über die ganze Breite unten. */
 @media (orientation: landscape) and (max-height: 560px) {
@@ -228,9 +231,14 @@ body:has(#app.table) { margin-top: 0; }
     grid-template-areas: "top melds" "board melds" "discard melds" "controls melds" "hand hand";
   }
   .top { grid-area: top; }
-  .score { padding: 0 10px; }
-  .board { grid-area: board; display: flex; align-items: center; justify-content: center; gap: 18px; }
+  .score { padding: 0 6px; min-width: 46px; }
+  .top, .top-side { gap: 4px; }
+  .goal { font-size: 10px; }
+  .seat .fan .back + .back { margin-left: calc(var(--cw) * -.72); }
+  .board { grid-area: board; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .seat { --cw: 24px; }
+  .board .mid { gap: 14px; }
+  .piles { gap: 16px; }
   .discard-row { grid-area: discard; padding: 2px 8px 4px; gap: 2px; }
   .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
   .melds { grid-area: melds; }
@@ -941,7 +949,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v32 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v33 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
