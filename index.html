@@ -329,6 +329,9 @@ const BASE_RULES = {
   noPotPenalty: 100, noProjectPenalty: 0, // Runde ohne Projekte: keine −200, normal werten
   openingThreshold: 0, openingMinimum: 0, // Mindestwert der ersten Auslage: bei uns aus
   target: 3510,
+  // Bedingung zum Beenden (vor Spielbeginn wählbar): wie viele der zwei Projekte ohne Joker sein müssen.
+  // 1 = 200 + 100 (eins ohne, eins mit genau einem Joker; 2× ohne geht auch), 2 = 2×200 (beide ohne Joker).
+  closeClean: 1,
   setRanks: [1, 2, 3], // Sätze (gleiche Werte) nur aus A, 2 und 3
   returnPenalty: 0, // Strafe fürs Zurücklegen der Ablage (vorerst aus)
 };
@@ -474,15 +477,18 @@ function startRound(st) {
 }
 const curTeam = st => teamOf(st.current);
 const hasProject = (st, t) => st.melds[t].some(m => isProject(m, st.rules));
-// Bedingung zum Beenden: zwei Projekte, entweder beide ohne Joker (200+)
-// oder eins ohne Joker (200+) und eins mit genau einem Joker (100/150).
+// Bedingung zum Beenden: immer zwei Projekte. Variante "2×200": beide ohne Joker (200+).
+// Variante "200+100": mindestens eins ohne Joker (200+), das andere darf genau einen Joker haben (100/150).
 // Auslagen mit 2+ Jokern sind nie Projekte (siehe isProject).
+const closeCleanOf = r => r.closeClean === 2 ? 2 : 1; // alte Spielstände ohne Wert: 200+100
 function meldsAllowClose(melds, r) {
   const projects = melds.filter(m => isProject(m, r));
-  return projects.length >= 2 && projects.some(m => m.wild === 0);
+  return projects.length >= 2 && projects.filter(m => m.wild === 0).length >= closeCleanOf(r);
 }
 const canClose = (st, t) => meldsAllowClose(st.melds[t], st.rules);
-const CLOSE_TEXT = "مشروعين 200، أو مشروع 200 ومشروع 100";
+const closeText = c => c === 2 ? "مشروعين 200 (بدون جوكر)" : "مشروع 200 ومشروع 100";
+const closeShort = c => c === 2 ? "2×200" : "200+100";
+const closeRules = () => Object.assign({}, BASE_RULES, { closeClean: ui.close === 2 ? 2 : 1 });
 const canTakePot = (st, t) => !st.tookPot[t] && st.pots.length > 0;
 const needsOpening = (st, t) => st.scores[t] >= st.rules.openingThreshold && !st.opened[t];
 
@@ -520,7 +526,7 @@ function checkRemaining(st, removing, closeAfter) {
   const rem = st.hands[st.current].length - removing, t = curTeam(st);
   if (rem === 0 && !canTakePot(st, t)) fail("احتفظ بورقة لترميها.");
   if (rem === 1 && !canTakePot(st, t) && !closeAfter)
-    fail("لن تستطيع رمي آخر ورقة: للختم يحتاج فريقك إلى " + CLOSE_TEXT + ".");
+    fail("لن تستطيع رمي آخر ورقة: للختم يحتاج فريقك إلى " + closeText(closeCleanOf(st.rules)) + ".");
 }
 function removeFromHand(st, ids) {
   const s = new Set(ids);
@@ -569,7 +575,7 @@ function discardCard(st, id) {
   if (!card) fail("الورقة غير موجودة.");
   if (st.mustMeld) fail("أخذت كومة الحرق: يجب أن تنزّل شيئاً أو تضيف على تنزيل قبل أن ترمي.");
   const t = curTeam(st), last = st.hands[st.current].length === 1;
-  if (last && !canTakePot(st, t) && !canClose(st, t)) fail("للختم يحتاج فريقك إلى " + CLOSE_TEXT + ".");
+  if (last && !canTakePot(st, t) && !canClose(st, t)) fail("للختم يحتاج فريقك إلى " + closeText(closeCleanOf(st.rules)) + ".");
   removeFromHand(st, [id]);
   st.discard.push(card);
   st.log = st.players[st.current].name + ": رمى " + cardLabel(card) + ".";
@@ -740,7 +746,7 @@ function aiChooseDiscard(st) {
 
 // ---------- Oberfläche ----------
 const app = document.getElementById("app");
-const ui = { screen: "start", mode: "teams", st: null, me: 0, selected: new Set(), msg: null, thinking: false, gen: 0,
+const ui = { screen: "start", mode: "teams", close: 1, st: null, me: 0, selected: new Set(), msg: null, thinking: false, gen: 0,
   name: localStorage.getItem("brk-name") || "", code: "" };
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
@@ -863,7 +869,11 @@ function renderStart() {
         <button id="mode-teams" class="${ui.mode === "teams" ? "on" : ""}" data-act="mode" data-v="teams">٢ ضد ٢</button>
         <button id="mode-duel" class="${ui.mode === "duel" ? "on" : ""}" data-act="mode" data-v="duel">١ ضد ١</button>
       </div>
-      <p class="goal-note">للختم: ${CLOSE_TEXT} · الهدف ${BASE_RULES.target} نقطة</p>
+      <div class="seg" role="group" aria-label="شرط الختم">
+        <button id="close-1" class="${ui.close === 1 ? "on" : ""}" data-act="close" data-v="1" dir="ltr">200 + 100</button>
+        <button id="close-2" class="${ui.close === 2 ? "on" : ""}" data-act="close" data-v="2" dir="ltr">2×200</button>
+      </div>
+      <p class="goal-note">للختم: ${closeText(ui.close)} · الهدف ${BASE_RULES.target} نقطة</p>
     </div>
     <div class="btn-col">
       <button class="btn primary" data-act="start">العب ضد الكمبيوتر</button>
@@ -874,8 +884,8 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v19 · ${storageInfo()}</p>
-    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم: مشروعين 200، أو مشروع 200 ومشروع 100.</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v20 · ${storageInfo()}</p>
+    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200.</p>
   </div>`;
 }
 function seatHTML(st, p, compact) {
@@ -929,7 +939,7 @@ function renderTable() {
       </div>
       ${commBar(true)}
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
-        : `<span class="goal">الهدف ${r.target}<br>الختم <bdi dir="ltr">200+200 / 200+100</bdi></span>`}
+        : `<span class="goal">الهدف ${r.target}<br>الختم <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
     </div>
     <div class="board">${seatHTML(st, rel(four ? 2 : 1), false)}
     <div class="mid">
@@ -1078,7 +1088,7 @@ function startGame() {
   const players = ui.mode === "teams"
     ? [{ name: "أنت", human: true }, { name: "اليمين" }, { name: "الشريك" }, { name: "اليسار" }]
     : [{ name: "أنت", human: true }, { name: "الكمبيوتر" }];
-  const rules = Object.assign({}, BASE_RULES);
+  const rules = closeRules();
   ui.gen++; ui.thinking = false;
   ui.st = newGame(players, rules);
   ui.screen = "table"; ui.selected = new Set(); ui.msg = null;
@@ -1092,6 +1102,7 @@ app.addEventListener("click", e => {
   if (!el || el.disabled) return;
   const act = el.dataset.act;
   if (act === "mode") { ui.mode = el.dataset.v; return render(); }
+  if (act === "close") { ui.close = Number(el.dataset.v); return render(); }
   if (act === "start") return startGame();
   if (act === "askquit") return askQuit();
   if (act === "cancelquit") { ui.confirmQuit = null; return render(); }
@@ -1198,7 +1209,7 @@ function hostRoom(saved) {
     pick: null, tries: 0,
   };
   if (saved) {
-    ui.mode = saved.mode; ui.st = saved.st; ui.me = saved.me || 0;
+    ui.mode = saved.mode; ui.close = saved.close === 2 ? 2 : 1; ui.st = saved.st; ui.me = saved.me || 0;
     if (ui.st) ui.st.players.forEach(p => { if (p.cid && p.cid !== "host") p.offline = true; });
     net.seats.forEach(s => { if (s && s.cid !== "host") s.online = false; });
   }
@@ -1317,7 +1328,7 @@ function hostBroadcast() {
   for (const conn of net.conns.values()) {
     if (!conn.open) continue;
     let msg;
-    if (lobby) msg = { t: "lobby", code: net.code, mode: ui.mode,
+    if (lobby) msg = { t: "lobby", code: net.code, mode: ui.mode, close: ui.close,
       seats: net.seats.map(s => s && { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, host: s.cid === "host", you: s.cid === conn.cid }) };
     else { const seat = hostPlayer(conn.cid); msg = { t: "state", seat, st: redact(ui.st, seat) }; }
     const json = JSON.stringify(msg);
@@ -1328,7 +1339,7 @@ function hostBroadcast() {
   hostVoiceList();
   try {
     localStorage.setItem("brk-host", JSON.stringify({ code: net.code, seats: net.seats.map(s => s && { name: s.name, cid: s.cid }),
-      mode: ui.mode, st: ui.st, me: ui.me }));
+      mode: ui.mode, close: ui.close, st: ui.st, me: ui.me }));
   } catch (e) {}
 }
 function hostSetMode(mode) {
@@ -1341,7 +1352,7 @@ function hostSetMode(mode) {
   ui.msg = null;
 }
 function hostStart() {
-  const rules = Object.assign({}, BASE_RULES);
+  const rules = closeRules();
   let bots = 0;
   const players = net.seats.map(s => s
     ? { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, human: true, cid: s.cid, offline: s.cid !== "host" && !net.conns.has(s.cid) }
@@ -1709,7 +1720,7 @@ function renderLobby() {
       <button class="btn" data-act="quit">رجوع</button></div>`;
     return;
   }
-  const L = host ? { code: net.code, mode: ui.mode, seats: net.seats.map(s => s && { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, host: s.cid === "host", you: s.cid === "host" }) } : net.lobby;
+  const L = host ? { code: net.code, mode: ui.mode, close: ui.close, seats: net.seats.map(s => s && { name: s.cid === "host" ? (ui.name || "المضيف") : s.name, host: s.cid === "host", you: s.cid === "host" }) } : net.lobby;
   const people = L.seats.filter(Boolean).length;
   app.innerHTML = `<div class="start">
     <div><p class="sub">كود الغرفة</p><p class="room-code">${esc(L.code)}</p>
@@ -1719,8 +1730,12 @@ function renderLobby() {
     <div class="opts panel">
       ${host ? `<div class="seg" role="group" aria-label="نوع اللعب">
         <button class="${L.mode === "teams" ? "on" : ""}" data-act="lmode" data-v="teams">٢ ضد ٢</button>
-        <button class="${L.mode === "duel" ? "on" : ""}" data-act="lmode" data-v="duel">١ ضد ١</button></div>`
-      : `<p class="goal-note">${L.mode === "teams" ? "٢ ضد ٢" : "١ ضد ١"} · للختم: ${CLOSE_TEXT}</p>`}
+        <button class="${L.mode === "duel" ? "on" : ""}" data-act="lmode" data-v="duel">١ ضد ١</button></div>
+      <div class="seg" role="group" aria-label="شرط الختم">
+        <button class="${L.close === 1 ? "on" : ""}" data-act="lclose" data-v="1" dir="ltr">200 + 100</button>
+        <button class="${L.close === 2 ? "on" : ""}" data-act="lclose" data-v="2" dir="ltr">2×200</button></div>
+      <p class="goal-note">للختم: ${closeText(L.close)}</p>`
+      : `<p class="goal-note">${L.mode === "teams" ? "٢ ضد ٢" : "١ ضد ١"} · للختم: ${closeText(L.close === 2 ? 2 : 1)}</p>`}
       ${lobbySeatsHTML(L.seats, host)}
       ${host ? `<p class="net-note">${L.seats.length === 4 ? "المقعد ١ و٣ فريق، و٢ و٤ فريق. " : ""}اضغط على مقعدين لتبديلهما. المقاعد الفارغة يلعبها الكمبيوتر.</p>` : ""}
       ${host ? nameField() : ""}
@@ -1753,6 +1768,7 @@ function onlineClick(act, el) {
   }
   if (!net || !net.host) return false;
   if (act === "lmode") { hostSetMode(el.dataset.v); return render(); }
+  if (act === "lclose") { ui.close = Number(el.dataset.v) === 2 ? 2 : 1; return render(); }
   if (act === "seat") {
     const i = Number(el.dataset.i);
     if (net.pick === null) net.pick = i;
@@ -1839,7 +1855,7 @@ setInterval(() => {
 // ----- Nach dem Neuladen weiterspielen -----
 function saveSolo() {
   if (net || !ui.st || ui.screen !== "table") return;
-  try { localStorage.setItem("brk-solo", JSON.stringify({ st: ui.st, mode: ui.mode, at: Date.now() })); }
+  try { localStorage.setItem("brk-solo", JSON.stringify({ st: ui.st, mode: ui.mode, close: ui.close, at: Date.now() })); }
   catch (e) { ui.saveError = String(e && e.name || e); }
 }
 // Beim Verlassen der Seite noch einmal sicher speichern (iPhone schließt Safari sonst ohne Vorwarnung).
@@ -1874,7 +1890,7 @@ function restoreOnLoad() {
   let solo = null;
   try { solo = JSON.parse(localStorage.getItem("brk-solo")); } catch (e) {}
   if (solo && solo.st) {
-    ui.mode = solo.mode; ui.st = solo.st; ui.me = 0;
+    ui.mode = solo.mode; ui.close = solo.close === 2 ? 2 : 1; ui.st = solo.st; ui.me = 0;
     ui.screen = "table";
     render();
     runComputer();
