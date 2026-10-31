@@ -136,6 +136,7 @@ button { font: inherit; color: inherit; }
 .meld .cards .card + .card { margin-left: calc(var(--cw) * -.45); }
 .meld .tag { font-size: 11px; font-weight: 800; color: var(--ink-dim); text-align: start; }
 .meld .tag.clean { color: var(--brass); }
+.meld .tag.pending { opacity: .55; text-decoration: line-through; }
 .meld.target { box-shadow: 0 0 0 1px var(--brass-dim); }
 .empty { font-size: 11px; color: rgba(242,239,230,.4); }
 
@@ -436,6 +437,9 @@ function meldBonus(m, r) {
   if (m.wild === 0 && m.cards.length === 14) return r.fullRunBonus; // A-2-…-K-A ohne Joker
   return m.wild === 0 ? r.cleanBonus : r.dirtyBonus;
 }
+// Regel: Projekte mit Joker (100/150) zählen erst, wenn die Seite ein Projekt ohne Joker hat (200, 300 oder 400).
+const hasCleanProject = (melds, r) => melds.some(m => isProject(m, r) && m.wild === 0);
+const countsBonus = (m, melds, r) => m.wild === 0 || hasCleanProject(melds, r);
 
 // ---------- Spielstand ----------
 class GameError extends Error {}
@@ -601,7 +605,7 @@ function endRound(st, wentOut) {
     const s = { meld: 0, bonus: 0, out: 0, hand: 0, noPot: 0, noProject: 0, returned: st.penalties[t] };
     if (!st.tookPot[t]) s.noPot = r.noPotPenalty; // −100 ohne 100er, unabhängig von Projekten
     if (!anyProject && r.noProjectPenalty) { s.noProject = r.noProjectPenalty; return s; }
-    for (const m of st.melds[t]) { s.meld += meldPoints(m); s.bonus += meldBonus(m, r); }
+    for (const m of st.melds[t]) { s.meld += meldPoints(m); if (countsBonus(m, st.melds[t], r)) s.bonus += meldBonus(m, r); }
     st.players.forEach((_, p) => { if (teamOf(p) === t) s.hand += st.hands[p].reduce((a, c) => a + cardValue(c), 0); });
     if (wentOut === t) s.out = r.goOutBonus;
     return s;
@@ -886,7 +890,8 @@ function meldsHTML(st, t, title) {
   const myTurn = isHumanTurn() && st.phase === "play" && t === teamOf(ui.me) && ui.selected.size > 0;
   const items = st.melds[t].map(m => {
     const proj = isProject(m, st.rules);
-    const tag = proj ? `<span class="tag ${m.wild === 0 ? "clean" : ""}">مشروع ${meldBonus(m, st.rules)}</span>` : "";
+    const pending = proj && !countsBonus(m, st.melds[t], st.rules);
+    const tag = proj ? `<span class="tag ${m.wild === 0 ? "clean" : ""} ${pending ? "pending" : ""}" ${pending ? 'title="يُحسب بعد مشروع بدون جوكر"' : ""}>مشروع ${meldBonus(m, st.rules)}</span>` : "";
     return `<button class="meld ${myTurn ? "target" : ""}" data-act="add" data-meld="${m.id}" ${t === teamOf(ui.me) ? "" : 'tabindex="-1"'}>
       <div class="cards">${m.cards.map(c => cardHTML(c)).join("")}</div>${tag}</button>`;
   }).join("");
