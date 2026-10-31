@@ -321,7 +321,7 @@ const cardLabel = c => isJoker(c) ? "جوكر" : rankLabel(c.rank) + SUITS[c.sui
 
 // Alle einstellbaren Regeln an einer Stelle (Mos Anpassungen kommen hier rein).
 const BASE_RULES = {
-  handSize: 11, potSize: 11, minMeld: 3, projectSize: 7, maxWilds: 1,
+  handSize: 11, potSize: 11, minMeld: 3, projectSize: 7, // beliebig viele Joker pro Auslage (z. B. 2-5-Joker)
   cleanBonus: 200, dirtyBonus: 100, // Projekt aus einer Reihe
   fullRunBonus: 400, // volle Reihe A-2-…-K-A ohne Joker
   setCleanBonus: 300, setDirtyBonus: 150, // Projekt aus einem Satz (auch aus 2ern)
@@ -375,12 +375,12 @@ function validateSet(cards, rules, id) {
   if (nat.length === 0) {
     // Satz aus 2ern: die 2er sind hier echte Karten, nur echte Joker zählen als Joker.
     const twos = cards.filter(c => c.rank === 2), jokers = cards.filter(isJoker);
-    if (!twos.length || jokers.length > rules.maxWilds || !rules.setRanks.includes(2)) return null;
+    if (!twos.length || !rules.setRanks.includes(2)) return null;
     return { id, kind: { t: "set", rank: 2 }, cards: twos.sort((a, b) => a.suit - b.suit).concat(jokers), wild: jokers.length };
   }
   const rank = nat[0].rank;
   if (!rules.setRanks.includes(rank)) return null;
-  if (!nat.every(c => c.rank === rank) || wilds.length > rules.maxWilds) return null;
+  if (!nat.every(c => c.rank === rank)) return null;
   return { id, kind: { t: "set", rank }, cards: nat.sort((a, b) => a.suit - b.suit).concat(wilds), wild: wilds.length };
 }
 function validateRun(cards, rules, id) {
@@ -396,7 +396,6 @@ function validateRun(cards, rules, id) {
   for (const natTwo of options) {
     const nat = natTwo ? nonTwos.concat([natTwo]) : nonTwos;
     const wilds = natTwo ? twos.filter(c => c.id !== natTwo.id) : twos;
-    if (wilds.length > rules.maxWilds) continue;
     // Ass unten, oben, oder (volle Reihe A-2-…-K-A) zwei Asse an beiden Enden.
     for (const aceMode of ["low", "high", "both"]) {
       const m = arrangeRun(nat, wilds, aceMode, suit, id);
@@ -430,7 +429,8 @@ function arrangeRun(nat, wilds, aceMode, suit, id) {
   }
   return { id, kind: { t: "run", suit }, cards: ordered, wild: wilds.length };
 }
-const isProject = (m, r) => m.cards.length >= r.projectSize;
+// Projekt: 7+ Karten und höchstens ein Joker. Mit 2 oder mehr Jokern nie ein Projekt (kein 100/150).
+const isProject = (m, r) => m.cards.length >= r.projectSize && m.wild <= 1;
 const meldPoints = m => m.cards.reduce((s, c) => s + cardValue(c), 0);
 function meldBonus(m, r) {
   if (!isProject(m, r)) return 0;
@@ -877,8 +877,8 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v17 · ${storageInfo()}</p>
-    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر.</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v18 · ${storageInfo()}</p>
+    <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر.</p>
   </div>`;
 }
 function seatHTML(st, p, compact) {
