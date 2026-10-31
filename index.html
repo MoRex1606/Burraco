@@ -908,7 +908,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v23 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v24 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200.</p>
   </div>`;
 }
@@ -964,6 +964,7 @@ function renderTable() {
       ${commBar(true)}
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
         : `<span class="goal">الهدف ${r.target}<br>الختم <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
+      <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button>
     </div>
     <div class="board">${seatHTML(st, rel(four ? 2 : 1), false)}
     <div class="mid">
@@ -994,6 +995,7 @@ function renderTable() {
 
   if (st.phase === "roundOver" || st.phase === "gameOver") html += summaryHTML(st);
   html += chatPanelHTML();
+  if (ui.sheet) html += sheetHTML(st);
   if (ui.confirmQuit) html += quitConfirmHTML();
   app.innerHTML = html;
   fitMelds();
@@ -1128,6 +1130,8 @@ app.addEventListener("click", e => {
   if (act === "mode") { ui.mode = el.dataset.v; return render(); }
   if (act === "close") { ui.close = Number(el.dataset.v); return render(); }
   if (act === "start") return startGame();
+  if (act === "sheet") { ui.sheet = true; return render(); }
+  if (act === "sheetclose") { if (e.target === el || el.tagName === "BUTTON") { ui.sheet = false; render(); } return; }
   if (act === "askquit") return askQuit();
   if (act === "cancelquit") { ui.confirmQuit = null; return render(); }
   if (act === "quit" && ui.confirmQuit && Date.now() < ui.confirmQuit.until) return;
@@ -1164,6 +1168,21 @@ function askQuit() {
     render();
     if (Date.now() >= ui.confirmQuit.until) clearInterval(tick);
   }, 250);
+}
+// Punktetafel: Summe, Ziel und was noch fehlt (باقي = Ziel − Summe).
+function sheetHTML(st) {
+  const us = teamOf(ui.me), them = 1 - us, goal = st.rules.target;
+  const left = t => Math.max(0, goal - st.scores[t]);
+  return `<div class="overlay" data-act="sheetclose"><div class="summary">
+    <h2>لوحة التسجيل</h2>
+    <table>
+      <tr><th></th><th>نحن</th><th>الخصم</th></tr>
+      <tr><td>المجموع</td><td>${st.scores[us]}</td><td>${st.scores[them]}</td></tr>
+      <tr><td>الهدف</td><td>${goal}</td><td>${goal}</td></tr>
+      <tr class="sum"><td>باقي</td><td>${left(us)}</td><td>${left(them)}</td></tr>
+    </table>
+    <button class="btn primary" data-act="sheetclose">إغلاق</button>
+  </div></div>`;
 }
 function quitConfirmHTML() {
   const left = Math.max(0, Math.ceil((ui.confirmQuit.until - Date.now()) / 1000));
@@ -1632,6 +1651,7 @@ const SVG = {
   spk: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
   spkOff: '<path d="M4 9h4l5-4v14l-5-4H4z"/>',
   chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10.5h.01M12 10.5h.01M16 10.5h.01" stroke-width="2.6"/>',
+  sheet: '<path d="M6 3h9l3 3v15H6z"/><path d="M9 8h.01M9 12h.01M9 16h.01" stroke-width="2.6"/><path d="M12 8h3M12 12h3M12 16h3"/>',
   slash: '<path d="M4 4l16 16"/>',
 };
 const icon = (p, off) => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}${off ? SVG.slash : ""}</svg>`;
