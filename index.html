@@ -264,7 +264,7 @@ body:has(#app.table) { margin-top: 0; }
   .top { display: flex; }
   .top .top-mid { display: none; }
   .top-side.end { justify-content: flex-start; }
-  .board { grid-area: board; display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas: "r p l" "piles piles piles"; align-items: center; gap: 6px 8px; margin-top: 36px; /* eine Zeile Abstand unter der Kopfzeile */ }
+  .board { grid-area: board; display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas: ". p ." "r . l" "piles piles piles"; align-items: center; gap: 6px 8px; /* Partner direkt unter der Kopfzeile, rechts/links eine Zeile tiefer */ }
   .board .mid { display: contents; }
   .board > .seat:first-child { grid-area: p; }
   .board .mid > :first-child { grid-area: l; justify-self: start; }
@@ -989,7 +989,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v47 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v48 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
