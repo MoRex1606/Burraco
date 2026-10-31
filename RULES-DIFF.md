@@ -3,7 +3,7 @@
 هذه نسخة "البوراكو الديرية" كما تُلعب بكثرة في دير الزور. القوانين أدناه مقارنة مع قوانين لعبة **برازيلية – بوراكو** في جواكر كما هي منشورة في مدونتكم: https://blog.jawaker.com/baraziliyeh-rules/
 
 - العب النسخة الديرية: https://morex1606.github.io/Burraco/
-- كود المشروع: https://github.com/MoRex1606/Burraco
+- كود المشروع: https://github.com/MoRex1606/Burraco (شرح الملفات: [PROJECT.md](PROJECT.md))
 
 ## ما هو مشترك بين النسختين
 
