@@ -496,7 +496,6 @@ function discardCard(st, id) {
   const card = st.hands[st.current].find(c => c.id === id);
   if (!card) fail("الورقة غير موجودة.");
   if (st.mustMeld) fail("أخذت كومة الحرق: يجب أن تنزّل شيئاً أو تضيف على تنزيل قبل أن ترمي.");
-  if (st.turn === 0 && id === st.firstDrawId) fail("لا يجوز رمي أول ورقة مسحوبة في اللفة الأولى.");
   const t = curTeam(st), last = st.hands[st.current].length === 1;
   if (last && !canTakePot(st, t) && !canClose(st, t)) fail("للختم يحتاج فريقك إلى " + closeText(st.rules) + ".");
   removeFromHand(st, [id]);
@@ -653,7 +652,7 @@ function aiNextMove(st) {
 }
 function aiChooseDiscard(st) {
   const r = st.rules, hand = st.hands[st.current], t = curTeam(st);
-  const options = hand.filter(c => !(st.turn === 0 && c.id === st.firstDrawId));
+  const options = hand; // Erste gezogene Karte darf bei uns sofort abgeworfen werden
   const keep = c => {
     if (isWild(c)) return 1000;
     const others = hand.filter(o => o.id !== c.id && !isWild(o));
@@ -803,7 +802,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v8 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v9 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
