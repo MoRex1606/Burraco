@@ -901,7 +901,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v21 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v22 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200.</p>
   </div>`;
 }
@@ -1024,9 +1024,9 @@ function summaryHTML(st) {
       <tr><th></th><th>نحن</th><th>الخصم</th></tr>
       ${row("أوراق على الطاولة", s => s.meld)}
       ${row("المشاريع", s => s.bonus)}
-      ${row("الختم", s => s.out)}
+      ${row("فتوح", s => s.out)}
       ${row("أوراق باليد", s => -s.hand)}
-      ${row("بدون 100", s => -s.noPot)}
+      ${row("مور", s => -s.noPot)}
       ${BASE_RULES.noProjectPenalty ? row("بدون مشروع", s => -s.noProject) : ""}
       ${st.rules.returnPenalty ? row("إرجاع كومة الحرق", s => -s.returned) : ""}
       <tr class="sum"><td>هذه الجولة</td><td>${res[0].total}</td><td>${res[1].total}</td></tr>
