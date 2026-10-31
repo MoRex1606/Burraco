@@ -217,7 +217,11 @@ body:has(#app.table) { margin-top: 0; }
 @media (max-height: 700px) { .hand { --cw: 52px; } .seat { --cw: 24px; } }
 .summary { max-height: 100%; overflow-y: auto; }
 /* Hilfscontainer nur fürs Querformat; hochkant verhalten sie sich, als gäbe es sie nicht. */
-.board, .mside { display: contents; }
+.board { display: contents; }
+/* Hochformat: Auslagen des Gegners oben, كومة الحرق genau dazwischen, eigene Auslagen unten; jede Hälfte scrollt für sich. */
+.melds { overflow: hidden; }
+.mside { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.melds > .discard-row { flex: none; }
 /* Statuszeile links neben den Tasten (Tasten rechts). */
 .controls { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; }
 .controls .status { flex: 1; min-width: 0; min-height: 0; }
@@ -228,8 +232,8 @@ body:has(#app.table) { margin-top: 0; }
   #app.table {
     display: grid; gap: 4px 14px;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-    grid-template-areas: "top melds" "board melds" "discard melds" "controls melds" "hand hand";
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "top melds" "board melds" "controls melds" "hand hand";
   }
   .top { grid-area: top; }
   .score { padding: 0 6px; min-width: 46px; }
@@ -240,7 +244,7 @@ body:has(#app.table) { margin-top: 0; }
   .seat { --cw: 24px; }
   .board .mid { gap: 14px; }
   .piles { gap: 16px; }
-  .discard-row { grid-area: discard; padding: 2px 8px 4px; gap: 2px; }
+  .discard-row { padding: 2px 8px 4px; gap: 2px; }
   .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
   .melds { grid-area: melds; }
   .controls { grid-area: controls; display: flex; align-items: center; align-self: start; gap: 8px; }
@@ -274,6 +278,7 @@ body:has(#app.table) { margin-top: 0; }
   .meld { --cw: var(--meld-cw, 44px); }
   .melds h3 { font-size: 15px; }
   .controls { grid-area: controls; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+  .controls .status { flex: none; }
   .hand { grid-area: hand; padding: 18px 0 4px; --cw: 60px; }
 }
 
@@ -950,7 +955,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v35 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v36 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1020,12 +1025,13 @@ function renderTable() {
       </div>
       ${four ? seatHTML(st, rel(1), true) : "<span></span>"}
     </div></div>
+    <div class="melds panel"><div class="mside them">${meldsHTML(st, them, "الخصم")}</div>
     <button class="discard-row ${canDraw && top ? "ready" : ""}" data-act="take" ${canDraw && top ? "" : "disabled"} aria-label="خذ كومة الحرق">
       <span class="discard-label">كومة الحرق ${st.discard.length}${canDraw && top ? " · اضغط لأخذها" : ""}</span>
       <div class="discard-cards" style="--overlap:${discardOverlap(st.discard.length)}px">
         ${st.discard.length ? st.discard.map(c => cardHTML(c)).join("") : '<div class="slot"></div>'}</div>
     </button>
-    <div class="melds panel"><div class="mside them">${meldsHTML(st, them, "الخصم")}</div><hr><div class="mside us">${meldsHTML(st, us, "نحن")}</div></div>
+    <div class="mside us">${meldsHTML(st, us, "نحن")}</div></div>
     <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st)} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
     <div class="actions">
       <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
