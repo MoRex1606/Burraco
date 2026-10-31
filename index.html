@@ -534,11 +534,11 @@ function endRound(st, wentOut) {
   const r = st.rules, anyProject = [0, 1].some(t => hasProject(st, t));
   const res = [0, 1].map(t => {
     const s = { meld: 0, bonus: 0, out: 0, hand: 0, noPot: 0, noProject: 0, returned: st.penalties[t] };
+    if (!st.tookPot[t]) s.noPot = r.noPotPenalty; // −100 ohne 100er, unabhängig von Projekten
     if (!anyProject) { s.noProject = r.noProjectPenalty; return s; }
     for (const m of st.melds[t]) { s.meld += meldPoints(m); s.bonus += meldBonus(m, r); }
     st.players.forEach((_, p) => { if (teamOf(p) === t) s.hand += st.hands[p].reduce((a, c) => a + cardValue(c), 0); });
     if (wentOut === t) s.out = r.goOutBonus;
-    if (!st.tookPot[t]) s.noPot = r.noPotPenalty;
     return s;
   });
   res.forEach(s => { s.total = s.meld + s.bonus + s.out - s.hand - s.noPot - s.noProject - s.returned; });
@@ -803,7 +803,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v6 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v7 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. المشروع 7 أوراق أو أكثر.</p>
   </div>`;
 }
