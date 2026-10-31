@@ -908,7 +908,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v24 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v25 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، كومتان من 100، والـ2 جوكر. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للختم مشروعان، حسب الاختيار: 200 + 100 أو 2×200.</p>
   </div>`;
 }
@@ -963,7 +963,7 @@ function renderTable() {
       </div>
       ${commBar(true)}
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
-        : `<span class="goal">الهدف ${r.target}<br>الختم <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
+        : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
       <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button>
     </div>
     <div class="board">${seatHTML(st, rel(four ? 2 : 1), false)}
