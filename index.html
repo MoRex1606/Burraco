@@ -268,7 +268,8 @@ body:has(#app.table) { margin-top: 0; }
   .top .top-mid { display: none; }
   .top-side.end { justify-content: flex-start; margin-inline-start: 94px; }
   .board > .seat:first-child .name { display: block; max-width: 76px; overflow: hidden; text-overflow: ellipsis; }
-  .board .mid { grid-area: board; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  /* Rechter Spieler außen rechts, Stapel in der Mitte, linker Spieler direkt daneben (.mid ist ltr, daher flex-end). */
+  .board .mid { grid-area: board; display: flex; align-items: center; justify-content: flex-end; gap: 24px; }
   .seat { --cw: 24px; }
   .piles { gap: 16px; }
   .discard-row { padding: 2px 8px 4px; gap: 2px; }
@@ -985,7 +986,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v43 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v44 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
