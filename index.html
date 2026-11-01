@@ -82,6 +82,13 @@ button { font: inherit; color: inherit; }
 /* Fliegende Karten (Animation zwischen Stapel, Händen, Ablage und Auslagen) */
 .fly-layer { position: fixed; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
 .fly-layer > .card, .fly-layer > .back { position: absolute; margin: 0; transform-origin: 0 0; will-change: transform; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+/* „مور“ groß einblenden, wenn jemand den Mor nimmt: grün für das eigene Team, rot für den Gegner */
+.mor-pop { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 4; }
+.mor-pop span { font: 800 min(38vw, 34vh, 260px) / 1 var(--f-body); color: #3fd27a; opacity: 0;
+  text-shadow: 0 0 .08em rgba(0,0,0,.6), 0 .04em .12em rgba(0,0,0,.55); animation: mor-pop 1.7s cubic-bezier(.3,.7,.3,1) forwards; }
+.mor-pop.them span { color: #f04a4a; }
+@keyframes mor-pop { 0% { transform: scale(.15); opacity: 0; } 30% { transform: scale(1.1); opacity: 1; } 65% { transform: scale(1); opacity: 1; } 100% { transform: scale(.15); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mor-pop span { animation-name: mor-fade; } @keyframes mor-fade { 0%, 100% { opacity: 0; } 20%, 70% { opacity: 1; } } }
 .slot { width: var(--cw); height: calc(var(--cw) * 1.42); border: 1px dashed rgba(255,255,255,.3); border-radius: 6px; box-sizing: border-box; }
 
 /* Kopf */
@@ -1158,6 +1165,8 @@ function animCapture() {
 function animPlay(before) {
   const st = ui.st, now = animModel(st), old = animPrev;
   animPrev = now;
+  // Mor genommen: groß „مور“ zeigen (auch ohne Kartenflug).
+  if (old && old.key === now.key && now.stock <= old.stock && now.pots < old.pots) morPop(teamOf(old.current) === teamOf(now.me));
   // Neue Runde oder neues Spiel (Stapel wächst): nicht animieren, sonst flögen alle Karten auf einmal.
   if (!old || !before || REDUCED_MOTION.matches || old.key !== now.key || now.stock > old.stock) return;
   const after = animCapture();
@@ -1187,6 +1196,15 @@ function animPlay(before) {
     if (seat && before.pot && potLeft > 0) for (let i = 0; i < 5; i++) flights.push({ from: before.pot, to: seat, html: '<div class="back"></div>' });
   }
   flights.forEach((f, i) => fly(f, Math.min(i, FLY_MAX) * FLY_STAGGER));
+}
+function morPop(ours) {
+  document.querySelector(".mor-pop")?.remove();
+  const el = document.createElement("div");
+  el.className = "mor-pop " + (ours ? "us" : "them");
+  el.innerHTML = "<span>مور</span>";
+  document.body.appendChild(el);
+  el.firstChild.addEventListener("animationend", () => el.remove());
+  setTimeout(() => el.remove(), 2500);
 }
 function fly(f, delay) {
   const { from, to } = f;
