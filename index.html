@@ -82,6 +82,11 @@ button { font: inherit; color: inherit; }
 /* Fliegende Karten (Animation zwischen Stapel, Händen, Ablage und Auslagen) */
 .fly-layer { position: fixed; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
 .fly-layer > .card, .fly-layer > .back { position: absolute; margin: 0; transform-origin: 0 0; will-change: transform; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+/* Projektwert: gleicher Look wie das silberne Schild auf der Auslage, fliegt aus der Mitte darauf. */
+.proj-pop { position: fixed; z-index: 4; pointer-events: none; box-sizing: border-box; display: grid; place-items: center;
+  background: rgb(205,210,218); border: 1px solid rgba(255,255,255,.85); box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  color: #1e2a24; font-weight: 800; line-height: 1; font-family: var(--f-body); font-variant-numeric: tabular-nums;
+  transform-origin: 50% 50%; will-change: transform; }
 /* „مور“ groß einblenden, wenn jemand den Mor nimmt: grün für das eigene Team, rot für den Gegner */
 .mor-pop { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 4; }
 .mor-pop span { font: 800 min(38vw, 34vh, 260px) / 1 var(--f-body); color: #3fd27a; opacity: 0;
@@ -172,6 +177,15 @@ body:has(#app.table) { margin-top: 0; }
 .discard-row.ready .discard-label { color: var(--brass); }
 .discard-cards { display: flex; --cw: 40px; min-height: calc(40px * 1.42); }
 .discard-cards .card + .card { margin-left: var(--overlap, -10px); }
+/* Ziehstapel rechts neben كومة الحرق, in derselben Zeile: die Ablage wird schmaler, die Höhe bleibt gleich. */
+.discard-bar { display: flex; align-items: stretch; gap: 8px; }
+.discard-bar > .discard-row { flex: 1; min-width: 0; }
+/* Warnung, wenn der Ziehstapel zur Neige geht: ab 8 Karten gelb, ab 4 Karten rot leuchtend. */
+.pile-label.few { background: rgba(130,96,8,.95); border-color: #ffd84a; color: #fff1b8; box-shadow: 0 0 10px 3px rgba(255,214,60,.85); }
+.pile-label.few small { color: #fff1b8; }
+.pile-label.low { background: rgba(80,12,12,.92); border-color: #ff5a4a; color: #ffb3a8; box-shadow: 0 0 8px 2px rgba(255,70,55,.8); }
+.pile-label.low small { color: #ffb3a8; }
+.draw-pile { flex: none; justify-content: center; padding: 0 6px; --cw: 34px; }
 
 /* Kartenreihen bleiben links-nach-rechts, auch im arabischen Layout. */
 .card, .mid, .piles, .pots, .fan, .fanned, .hand-inner, .discard-cards, .meld .cards { direction: ltr; }
@@ -249,6 +263,27 @@ body:has(#app.table) { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { .hand .card { transition: none; } }
 @media (max-height: 700px) { .hand { --cw: 52px; } .seat { --cw: 24px; } }
 .summary { max-height: 100%; overflow-y: auto; }
+.end-hands { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.end-hand { display: flex; align-items: center; gap: 8px; }
+.end-hand > span { flex: none; width: 64px; font-size: 12px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.end-hand.us > span { color: var(--brass); }
+.end-hand small { font-variant-numeric: tabular-nums; opacity: .8; }
+.end-cards { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; row-gap: 3px; --cw: 26px; direction: ltr; justify-content: flex-end; }
+.end-cards .card + .card { margin-left: -9px; }
+/* Handy quer: Tabelle links, Handkarten rechts, damit alles ohne Scrollen passt. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .summary { width: min(100%, 800px); display: grid; gap: 6px 20px; padding: 12px 16px; align-items: start;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "h h" "t hands" "a hands" "n hands"; }
+  .summary h2 { grid-area: h; font-size: 22px; }
+  .summary table { grid-area: t; font-size: 13px; }
+  .summary td, .summary th { padding: 2px 6px; }
+  .summary .end-hands { grid-area: hands; align-self: center; }
+  .summary .summary-actions { grid-area: a; }
+  .summary .review-note { grid-area: n; text-align: center; }
+}
+.summary-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.review-note { margin: 0; font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.review-chip { align-self: center; font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 /* Hilfscontainer nur fürs Querformat; hochkant verhalten sie sich, als gäbe es sie nicht. */
 .board { display: contents; }
 /* Hochformat: Auslagen des Gegners oben, كومة الحرق genau dazwischen, eigene Auslagen unten; jede Hälfte scrollt für sich. */
@@ -265,7 +300,7 @@ body:has(#app.table) { margin-top: 0; }
 .took { position: absolute; top: 50%; right: -19px; transform: translate(50%, -50%); z-index: 2; pointer-events: none;
   writing-mode: vertical-rl; white-space: nowrap; font: 700 12px var(--f-body); color: var(--brass); letter-spacing: .02em; }
 .mscroll { position: relative; z-index: 1; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.melds > .discard-row { flex: none; }
+.melds > .discard-bar { flex: none; }
 /* Statuszeile links neben den Tasten (Tasten rechts). */
 .controls { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; }
 .controls .status { flex: 1; min-width: 0; min-height: 0; }
@@ -298,6 +333,7 @@ body:has(#app.table) { margin-top: 0; }
   .seat { --cw: 24px; }
   .piles { gap: 16px; }
   .discard-row { padding: 2px 8px 4px; gap: 2px; }
+  .draw-pile { --cw: 28px; }
   .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
   .melds { grid-area: melds; }
   /* Querformat wie hochkant: außerhalb des Spielfelds, im Spalt rechts neben dem Rahmen. */
@@ -331,7 +367,7 @@ body:has(#app.table) { margin-top: 0; }
   .top { grid-area: top; }
   .board { grid-area: board; display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .board .mid { align-self: stretch; }
-  .discard-row { grid-area: discard; }
+  .discard-bar { grid-area: discard; }
   .melds { display: contents; }
   .melds hr { display: none; }
   .mside { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; padding: 10px 12px;
@@ -751,6 +787,23 @@ function migrateState(st) {
   if (st.lastRound) st.lastRound.teams.forEach(s => scaleRow(s, st.rules));
   return st;
 }
+const REVIEW_MS = 90000;
+// Alle (noch verbundenen) Menschen haben „ابدأ جولة جديدة“ gedrückt?
+const allReady = st => st.players.every((p, i) => (st.ready || [])[i] || !p.human || p.bot || p.offline);
+function startNextRound() {
+  const st = ui.st;
+  if (!st || st.phase !== "roundOver") return;
+  delete st.ready; delete st.reviewUntil;
+  startRound(st); ui.selected = new Set(); ui.msg = null; ui.peek = false; render(); runComputer();
+}
+function markReady(seat) {
+  const st = ui.st;
+  if (!st || st.phase !== "roundOver") return;
+  if (!st.ready) st.ready = st.players.map(() => false);
+  st.ready[seat] = true;
+  if (allReady(st)) return startNextRound();
+  render();
+}
 function endRound(st, wentOut) {
   const r = st.rules, anyProject = [0, 1].some(t => hasProject(st, t));
   const res = [0, 1].map(t => {
@@ -767,7 +820,12 @@ function endRound(st, wentOut) {
   st.lastRound = { teams: res, wentOut };
   const best = Math.max(...st.scores), leaders = [0, 1].filter(t => st.scores[t] === best);
   if (best >= r.target && leaders.length === 1) { st.winner = leaders[0]; st.phase = "gameOver"; }
-  else st.phase = "roundOver";
+  else {
+    st.phase = "roundOver";
+    // Tisch kontrollieren: höchstens 1:30 Minuten, dann startet die nächste Runde von selbst.
+    st.ready = st.players.map(p => !p.human || !!p.bot);
+    st.reviewUntil = Date.now() + REVIEW_MS;
+  }
   st.log = wentOut !== null ? "فريق " + TEAM_NAMES[wentOut] + " ختم الجولة." : "انتهت كومة السحب، انتهت الجولة.";
 }
 
@@ -1037,7 +1095,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V2.5 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V2.6 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1082,6 +1140,8 @@ function renderTable() {
   const cur = st.players[st.current];
   const canBot = net && net.host && cur.human && cur.offline && !cur.bot && (st.phase === "draw" || st.phase === "play");
   const canDraw = isHumanTurn() && st.phase === "draw";
+  const over = st.phase === "roundOver" || st.phase === "gameOver";
+  if (!over) ui.peek = false;
   const canPlay = isHumanTurn() && st.phase === "play";
   const top = st.discard[st.discard.length - 1];
   const hand = st.hands[ui.me];
@@ -1099,31 +1159,32 @@ function renderTable() {
     <div class="mid">
       ${four ? seatHTML(st, rel(3), true) : "<span></span>"}
       <div class="piles">
-        <button class="pile ${canDraw && st.stock.length ? "ready" : ""}" data-act="draw" ${canDraw ? "" : "disabled"} aria-label="اسحب من الكومة">
-          <div class="stack">${st.stock.length ? backs(2) : '<div class="slot"></div>'}<span class="pile-label">السحب<small>${st.stock.length}</small></span></div></button>
         <div class="pile" aria-label="كومتا المور"><div class="pots">${[0, 1].map(i => i < st.pots.length ? '<div class="back"></div>' : '<div class="slot"></div>').join("")}<span class="pile-label">المور</span></div></div>
       </div>
       ${four ? seatHTML(st, rel(1), true) : "<span></span>"}
     </div></div>
     <div class="melds panel"><div class="mside them">${meldsHTML(st, them, "الخصم")}</div>
+    <div class="discard-bar">
+    <button class="pile draw-pile ${canDraw && st.stock.length ? "ready" : ""}" data-act="draw" ${canDraw ? "" : "disabled"} aria-label="اسحب من الكومة">
+      <div class="stack">${st.stock.length ? backs(2) : '<div class="slot"></div>'}<span class="pile-label${st.stock.length <= 4 ? " low" : st.stock.length <= 8 ? " few" : ""}">السحب<small>${st.stock.length}</small></span></div></button>
     <button class="discard-row ${canDraw && top ? "ready" : ""}" data-act="take" ${canDraw && top ? "" : "disabled"} aria-label="خذ كومة الحرق">
       <span class="discard-label">كومة الحرق ${st.discard.length}${canDraw && top ? " · اضغط لأخذها" : ""}</span>
       <div class="discard-cards" style="--overlap:${discardOverlap(st.discard.length)}px">
         ${st.discard.length ? st.discard.map(c => cardHTML(c)).join("") : '<div class="slot"></div>'}</div>
-    </button>
+    </button></div>
     <div class="mside us">${meldsHTML(st, us, "نحن")}</div></div>
     <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st)} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
-    <div class="actions">
+    <div class="actions">${over ? `<button class="btn primary" data-act="result">النتيجة</button>${st.phase === "roundOver" ? `<span class="review-chip">⏱ <bdi class="review-timer" dir="ltr">${mmss(reviewLeft(st) ?? 0)}</bdi></span>` : ""}</div></div>` : `
       <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
       ${canPlay && st.mustMeld
         ? `<button class="btn" data-act="return">أرجِع${r.returnPenalty ? ` (−${r.returnPenalty})` : ""}</button>`
         : `<button class="btn" data-act="discard" ${canPlay && ui.selected.size === 1 ? "" : "disabled"}>ارمِ</button>`}
       ${canBot ? '<button class="btn" data-act="botseat">دع الكمبيوتر يلعب عنه</button>' : ""}
-    </div></div>
+    </div></div>`}
     <div class="hand" style="--overlap:${handOverlap(hand.length)}px">${sayHTML(ui.me)}<div class="hand-inner">
       ${hand.map(c => cardHTML(c, ui.selected.has(c.id) ? "sel" : "")).join("")}</div>${net ? `<div class="comm-dock">${commBar(true)}</div>` : ""}</div>`;
 
-  if (st.phase === "roundOver" || st.phase === "gameOver") html += summaryHTML(st);
+  if (over && !ui.peek) html += summaryHTML(st);
   html += chatPanelHTML();
   if (ui.sheet) html += sheetHTML(st);
   if (ui.confirmQuit) html += quitConfirmHTML();
@@ -1150,8 +1211,48 @@ function animModel(st) {
   st.hands[ui.me].forEach(c => put(c, "h"));
   st.melds.forEach(ms => ms.forEach(m => m.cards.forEach(c => put(c, "m" + m.id))));
   st.discard.forEach(c => put(c, "d"));
-  return { key: ui.gen + "|" + ui.me + "|" + st.players.length + "|" + st.scores.join(",") + "|" + st.dealer,
+  const projects = new Map();
+  st.melds.forEach((ms, t) => ms.forEach(m => { if (isProject(m, st.rules)) projects.set(m.id, { v: meldBonus(m, st.rules), t }); }));
+  return { projects, key: ui.gen + "|" + ui.me + "|" + st.players.length + "|" + st.scores.join(",") + "|" + st.dealer,
     stock: st.stock.length, pots: st.pots.length, current: st.current, me: ui.me, loc, cards };
+}
+// Neues Projekt (oder höherer Wert): Wert groß in der Mitte zeigen, dann klein auf das Schild des Projekts fliegen.
+const PROJ_MS = 1900, projFlying = new Map();
+function projectPops(old, now) {
+  for (const [id, p] of now.projects) {
+    const o = old.projects.get(id);
+    if (o && o.v >= p.v) continue;
+    const tag = app.querySelector(`.meld[data-meld="${id}"] .tag`);
+    if (tag) projectPop(id, tag, p.v, FLY_MS);
+  }
+}
+function projectPop(id, tag, value, delay) {
+  const r = tag.getBoundingClientRect();
+  if (!r.width) return;
+  const cs = getComputedStyle(tag);
+  const el = document.createElement("span");
+  el.className = "proj-pop";
+  el.textContent = value;
+  el.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;font-size:${cs.fontSize};border-radius:${cs.borderRadius}`;
+  document.body.appendChild(el);
+  projFlying.set(id, Date.now() + delay + PROJ_MS);
+  tag.style.visibility = "hidden";
+  const dx = innerWidth / 2 - (r.left + r.width / 2), dy = innerHeight / 2 - (r.top + r.height / 2);
+  const k = Math.min(innerWidth * .5, innerHeight * .3, 260) / r.width;
+  const mid = `translate(${dx}px, ${dy}px)`;
+  const anim = el.animate([
+    { transform: `${mid} scale(${k * .2})`, opacity: 0, offset: 0 },
+    { transform: `${mid} scale(${k * 1.08})`, opacity: 1, offset: .2 },
+    { transform: `${mid} scale(${k})`, opacity: 1, offset: .5 },
+    { transform: "translate(0, 0) scale(1)", opacity: 1, offset: 1 }
+  ], { duration: PROJ_MS, delay, easing: "cubic-bezier(.4,0,.3,1)", fill: "both" });
+  const done = () => {
+    el.remove();
+    if (projFlying.get(id) > Date.now() + 50) return;
+    projFlying.delete(id);
+    app.querySelectorAll(`.meld[data-meld="${id}"] .tag`).forEach(t => { t.style.visibility = ""; });
+  };
+  anim.onfinish = done; anim.oncancel = done;
 }
 function animCapture() {
   if (ui.screen !== "table" || !app.querySelector(".board")) return null;
@@ -1161,7 +1262,7 @@ function animCapture() {
     const id = Number(el.dataset.card); cards.set(id, r(el)); els.set(id, el);
   });
   app.querySelectorAll(".seat[data-seat]").forEach(el => seats.set(Number(el.dataset.seat), r(el.querySelector(".fan > .back, .fan > .slot"))));
-  return { cards, els, seats, stock: r(app.querySelector(".piles .stack > .back:last-of-type, .piles .stack > .slot")),
+  return { cards, els, seats, stock: r(app.querySelector(".draw-pile .stack > .back:last-of-type, .draw-pile .stack > .slot")),
     pot: r(app.querySelector(".pots > .back") || app.querySelector(".pots > .slot")) };
 }
 function animPlay(before) {
@@ -1171,9 +1272,15 @@ function animPlay(before) {
   const potTaken = old && old.key === now.key && now.stock <= old.stock && now.pots < old.pots;
   if (potTaken) { morPop(teamOf(old.current) === teamOf(now.me)); animHoldUntil = Date.now() + MOR_DELAY + FLY_MS + 400; }
   // Neue Runde oder neues Spiel (Stapel wächst): nicht animieren, sonst flögen alle Karten auf einmal.
+  // Schilder, deren Wert gerade noch fliegt, bleiben bis zur Landung unsichtbar.
+  for (const [id, until] of projFlying) {
+    if (until <= Date.now()) projFlying.delete(id);
+    else app.querySelectorAll(`.meld[data-meld="${id}"] .tag`).forEach(t => { t.style.visibility = "hidden"; });
+  }
   if (!old || !before || REDUCED_MOTION.matches || old.key !== now.key || now.stock > old.stock) return;
   const after = animCapture();
   if (!after) return;
+  projectPops(old, now);
   // Karten, die noch unterwegs sind, bleiben an ihrem Ziel unsichtbar, auch wenn inzwischen neu gezeichnet wurde.
   for (const [id, until] of flying) {
     if (until <= Date.now()) flying.delete(id);
@@ -1264,12 +1371,32 @@ function fitMelds() {
     el.style.setProperty("--meld-cw", lo + "px");
   }
 }
+// Restzeit bis zum automatischen Start der nächsten Runde (m:ss).
+function reviewLeft(st) {
+  return st && st.phase === "roundOver" && st.reviewUntil ? Math.max(0, Math.ceil((st.reviewUntil - hostNow()) / 1000)) : null;
+}
+const mmss = s => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+function reviewHTML(st) {
+  const s = reviewLeft(st);
+  return s === null ? "" : `<p class="review-note">تبدأ الجولة تلقائياً بعد <bdi class="review-timer" dir="ltr">${mmss(s)}</bdi></p>`;
+}
+// Restkarten aller Spieler am Rundenende: erst das eigene Team, dann der Gegner.
+function handsHTML(st) {
+  const n = st.players.length, order = Array.from({ length: n }, (_, k) => (ui.me + k) % n);
+  const seats = order.filter(p => teamOf(p) === teamOf(ui.me)).concat(order.filter(p => teamOf(p) !== teamOf(ui.me)));
+  return `<div class="end-hands">${seats.map(p => {
+    const h = st.hands[p] || [];
+    const name = p === ui.me ? "أنت" : st.players[p].name;
+    return `<div class="end-hand ${teamOf(p) === teamOf(ui.me) ? "us" : ""}"><span>${esc(name)} <small>${h.length}</small></span>
+      <div class="end-cards">${h.length && typeof h[0] === "object" ? h.map(c => cardHTML(c)).join("") : '<em class="empty">—</em>'}</div></div>`;
+  }).join("")}</div>`;
+}
 function summaryHTML(st) {
   const us = teamOf(ui.me), them = 1 - us;
   const res = [st.lastRound.teams[us], st.lastRound.teams[them]];
   const row = (label, f) => `<tr><td>${label}</td><td>${f(res[0])}</td><td>${f(res[1])}</td></tr>`;
   const title = st.phase === "gameOver" ? (st.winner === us ? "مبروك، فزتم!" : "فاز الخصم") : "انتهت الجولة";
-  const guest = net && !net.host;
+  const waiting = st.phase === "roundOver" && (st.ready || [])[ui.me];
   return `<div class="overlay"><div class="summary">
     <h2>${title}</h2>
     <table>
@@ -1284,9 +1411,13 @@ function summaryHTML(st) {
       <tr class="sum"><td>هذه الجولة</td><td>${res[0].total}</td><td>${res[1].total}</td></tr>
       <tr class="sum"><td>المجموع</td><td>${st.scores[us]}</td><td>${st.scores[them]}</td></tr>
     </table>
+    ${handsHTML(st)}
+    <div class="summary-actions">
     ${st.phase === "gameOver" ? '<button class="btn primary" data-act="quit">لعبة جديدة</button>'
-      : guest ? '<button class="btn" disabled>بانتظار المضيف لبدء الجولة التالية …</button>'
-      : '<button class="btn primary" data-act="next">الجولة التالية</button>'}
+      : waiting ? '<button class="btn" disabled>بانتظار اللاعبين …</button>'
+      : '<button class="btn primary" data-act="next">ابدأ جولة جديدة</button>'}
+    <button class="btn" data-act="peek">شوفني الطاولة</button></div>
+    ${reviewHTML(st)}
   </div></div>`;
 }
 
@@ -1383,9 +1514,15 @@ app.addEventListener("click", e => {
   if (act === "quit") {
     quitCleanup();
     netLeave(); ui.gen++; ui.thinking = false; ui.screen = "start"; ui.st = null; ui.me = 0; return render(); }
+  if (act === "peek") { ui.peek = true; return render(); }
+  if (act === "result") { ui.peek = false; return render(); }
   if (act === "next") {
-    if (net && !net.host) return;
-    startRound(ui.st); ui.selected = new Set(); ui.msg = null; render(); return runComputer();
+    if (!ui.st || ui.st.phase !== "roundOver") return;
+    if (net && !net.host) {
+      if (!ui.st.ready) ui.st.ready = ui.st.players.map(() => false);
+      ui.st.ready[ui.me] = true; netSend({ t: "ready" }); return render();
+    }
+    return markReady(ui.me);
   }
   if (act === "draw") return humanAction({ a: "draw" });
   if (act === "take") return humanAction({ a: "take" });
@@ -1479,7 +1616,9 @@ function netBadge() {
 // Was ein Mitspieler sehen darf: eigene Hand ja, fremde Hände und Stapel nur als Anzahl.
 function redact(st, seat) {
   const c = clone(st);
-  c.hands = st.hands.map((h, p) => p === seat ? h : h.map(() => 0));
+  // Am Rundenende sind alle Hände offen (Ergebnis zeigt sie).
+  const open = st.phase === "roundOver" || st.phase === "gameOver";
+  c.hands = st.hands.map((h, p) => p === seat || open ? h : h.map(() => 0));
   c.stock = st.stock.map(() => 0);
   c.pots = st.pots.map(p => p.map(() => 0));
   c.players = st.players.map(p => ({ name: p.name, human: !!p.human, offline: !!p.offline, bot: !!p.bot }));
@@ -1576,6 +1715,11 @@ function hostOnData(conn, d) {
     const hand = ui.st.hands[seat], byId = new Map(hand.map(c => [c.id, c]));
     if (d.ids.length !== hand.length || new Set(d.ids).size !== hand.length || !d.ids.every(id => byId.has(id))) return;
     ui.st.hands[seat] = d.ids.map(id => byId.get(id));
+    return;
+  }
+  if (d.t === "ready") {
+    const seat = hostPlayer(conn.cid);
+    if (seat >= 0) markReady(seat);
     return;
   }
   if (d.t === "act") {
@@ -2139,6 +2283,13 @@ setInterval(() => {
     runComputer();
     return;
   }
+  if (st.phase === "roundOver") {
+    const left = reviewLeft(st);
+    if (!(net && !net.host) && left === 0) return startNextRound();
+    // Wer offline geht, wird nicht mehr abgewartet.
+    if (net && net.host && st.ready && allReady(st)) return startNextRound();
+    if (left !== null) app.querySelectorAll(".review-timer").forEach(el => { el.textContent = mmss(left); });
+  }
   const s = timerLeft(st);
   app.querySelectorAll(".timer").forEach(el => {
     if (s === null) { el.remove(); return; }
@@ -2149,7 +2300,7 @@ setInterval(() => {
 
 // ----- Nach dem Neuladen weiterspielen -----
 function saveSolo() {
-  if (net || !ui.st || ui.screen !== "table") return;
+  if (net || !ui.st || ui.screen !== "table" || ui.st.test) return;
   try { localStorage.setItem("brk-solo", JSON.stringify({ st: ui.st, mode: ui.mode, close: ui.close, speed: ui.speed, at: Date.now() })); }
   catch (e) { ui.saveError = String(e && e.name || e); }
 }
@@ -2175,7 +2326,39 @@ function quitCleanup() {
     else { const s = savedHost(); if (s) { s.left = true; localStorage.setItem("brk-host", JSON.stringify(s)); } }
   }
 }
+// Testspiel (?test=1): viele Auslagen auf beiden Seiten, mehrere Projekte, Ziehstapel leer.
+// Wird nicht gespeichert, damit ein laufendes Solospiel erhalten bleibt.
+function startTestGame() {
+  ui.mode = "teams"; ui.me = 0;
+  const st = newGame([{ name: "أنت", human: true }, { name: "اليمين" }, { name: "الشريك" }, { name: "اليسار" }], closeRules());
+  const pool = doubleDeck();
+  const pick = (rank, suit) => { const i = pool.findIndex(c => c.rank === rank && (suit === undefined || c.suit === suit)); return pool.splice(i, 1)[0]; };
+  const meld = specs => { const m = validate(specs.map(([r, s]) => pick(r, s)), st.rules); if (!m) throw new Error("Testauslage ungültig"); return m; };
+  const run = (suit, from, to) => Array.from({ length: to - from + 1 }, (_, k) => [from + k, suit]);
+  st.melds = [[
+    meld(run(2, 4, 10)),                               // Projekt ohne Joker (200)
+    meld([[5, 1], [6, 1], [0], [8, 1], [9, 1], [10, 1], [11, 1]]), // Projekt mit Joker (100)
+    meld([[1, 0], [1, 1], [1, 2], [1, 3], [1, 0], [1, 1], [1, 2]]), // Satz aus Assen (300)
+    meld(run(3, 3, 6)), meld(run(0, 9, 12)), meld([[3, 0], [3, 1], [3, 2]]), meld(run(3, 10, 13)),
+  ], [
+    meld(run(0, 3, 9)),                                // Projekt ohne Joker (200)
+    meld([[7, 3], [8, 3], [2, 0], [10, 3], [11, 3], [12, 3], [13, 3]]), // Projekt mit 2er (100)
+    meld(run(2, 11, 13)), meld([[3, 1], [3, 3], [3, 2]]), meld(run(1, 8, 10)),
+    meld([[4, 2], [5, 2], [6, 2], [7, 2]]), meld([[11, 0], [12, 0], [13, 0]]),
+  ]];
+  st.opened = [true, true]; st.tookPot = [true, true]; st.pots = [];
+  shuffle(pool);
+  // Wie im echten Spiel: Du hast gerade die letzte Karte vom Stapel gezogen; nach deinem Abwurf endet die Runde.
+  st.hands = [12, 7, 6, 8].map(n => sortHand(pool.splice(-n)));
+  st.discard = pool.splice(-4);
+  st.stock = [];
+  st.current = 0; st.phase = "play"; st.test = true;
+  st.log = "لعبة تجريبية: سحبت آخر ورقة، الجولة تنتهي بعد رميتك.";
+  ui.st = st; ui.screen = "table"; ui.selected = new Set(); ui.msg = null;
+  render();
+}
 function restoreOnLoad() {
+  if (urlParams.get("test")) return startTestGame();
   const guest = localStorage.getItem("brk-guest"), host = savedHost();
   if (urlParams.get("room")) {
     if (ONLINE && guest === ui.code && ui.name) joinRoom(ui.code);
