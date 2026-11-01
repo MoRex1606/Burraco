@@ -171,9 +171,15 @@ body:has(#app.table) { margin-top: 0; }
 .meld { display: flex; flex-direction: column; gap: 2px; background: none; border: 0; padding: 2px; cursor: pointer; border-radius: 6px; --cw: var(--meld-cw, 38px); }
 .meld .cards { display: flex; }
 .meld .cards .card + .card { margin-left: calc(var(--cw) * -.45); }
-.meld .tag { font-size: 11px; font-weight: 800; color: var(--ink-dim); text-align: start; }
-.meld .tag.clean { color: var(--brass); }
-.meld .tag.pending { opacity: .55; text-decoration: line-through; }
+/* Projektwert liegt als silbernes Schild auf den Karten, damit unter der Auslage keine Zeile Platz kostet. */
+.meld .cards { position: relative; }
+.meld .tag {
+  position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); pointer-events: none;
+  padding: 1px calc(var(--cw) * .14); border-radius: calc(var(--cw) * .12);
+  background: rgba(205,210,218,.72); border: 1px solid rgba(255,255,255,.8); box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  color: #1e2a24; font: 800 max(9px, calc(var(--cw) * .34)) / 1.15 var(--f-body); font-variant-numeric: tabular-nums;
+}
+.meld .tag.pending { opacity: .6; text-decoration: line-through; }
 .meld.target { box-shadow: 0 0 0 1px var(--brass-dim); }
 .empty { font-size: 11px; color: rgba(242,239,230,.4); }
 
@@ -997,7 +1003,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v53 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v54 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1014,9 +1020,9 @@ function meldsHTML(st, t, title) {
   const items = st.melds[t].map(m => {
     const proj = isProject(m, st.rules);
     const pending = proj && !countsBonus(m, st.melds[t], st.rules);
-    const tag = proj ? `<span class="tag ${m.wild === 0 ? "clean" : ""} ${pending ? "pending" : ""}" ${pending ? 'title="يُحسب بعد مشروع بدون جوكر"' : ""}>مشروع ${meldBonus(m, st.rules)}</span>` : "";
+    const tag = proj ? `<span class="tag ${pending ? "pending" : ""}" dir="ltr" aria-label="مشروع ${meldBonus(m, st.rules)}" ${pending ? 'title="يُحسب بعد مشروع بدون جوكر"' : ""}>${meldBonus(m, st.rules)}</span>` : "";
     return `<button class="meld ${myTurn ? "target" : ""}" data-act="add" data-meld="${m.id}" ${t === teamOf(ui.me) ? "" : 'tabindex="-1"'}>
-      <div class="cards">${m.cards.map(c => cardHTML(c)).join("")}</div>${tag}</button>`;
+      <div class="cards">${m.cards.map(c => cardHTML(c)).join("")}${tag}</div></button>`;
   }).join("");
   // Teamname groß und blass im Hintergrund der Hälfte; Auslagen liegen darüber und dürfen ihn verdecken.
   return `<h3 class="wm" aria-label="${title}">${title}${st.tookPot[t] ? "<span>أخذ المور</span>" : ""}</h3>
