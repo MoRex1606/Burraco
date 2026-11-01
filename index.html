@@ -1158,7 +1158,7 @@ function renderTable() {
       <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button>${commBar(true)}</div>
       <span class="top-mid"></span>
       <div class="top-side end">
-      ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
+      ${net && net.status !== "open" ? `<span class="goal"><span class="net-badge">${netBadge()}</span></span>`
         : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
       ${canPause(st) ? `<button class="comm-btn pause-btn ${st.paused ? "on" : ""}" data-act="pause" aria-pressed="${!!st.paused}" aria-label="${st.paused ? "تابع اللعب" : "أوقف اللعب مؤقتاً"}">${icon(st.paused ? SVG.play : SVG.pause)}</button>` : ""}
       <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button></div>
