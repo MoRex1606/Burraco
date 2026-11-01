@@ -258,6 +258,24 @@ body:has(#app.table) { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { .hand .card { transition: none; } }
 @media (max-height: 700px) { .hand { --cw: 52px; } .seat { --cw: 24px; } }
 .summary { max-height: 100%; overflow-y: auto; }
+.end-hands { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.end-hand { display: flex; align-items: center; gap: 8px; }
+.end-hand > span { flex: none; width: 64px; font-size: 12px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.end-hand.us > span { color: var(--brass); }
+.end-hand small { font-variant-numeric: tabular-nums; opacity: .8; }
+.end-cards { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; row-gap: 3px; --cw: 26px; direction: ltr; justify-content: flex-end; }
+.end-cards .card + .card { margin-left: -9px; }
+/* Handy quer: Tabelle links, Handkarten rechts, damit alles ohne Scrollen passt. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .summary { width: min(100%, 800px); display: grid; gap: 6px 20px; padding: 12px 16px; align-items: start;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "h h" "t hands" "a hands" "n hands"; }
+  .summary h2 { grid-area: h; font-size: 22px; }
+  .summary table { grid-area: t; font-size: 13px; }
+  .summary td, .summary th { padding: 2px 6px; }
+  .summary .end-hands { grid-area: hands; align-self: center; }
+  .summary .summary-actions { grid-area: a; }
+  .summary .review-note { grid-area: n; text-align: center; }
+}
 .summary-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .review-note { margin: 0; font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .review-chip { align-self: center; font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
@@ -1311,6 +1329,17 @@ function reviewHTML(st) {
   const s = reviewLeft(st);
   return s === null ? "" : `<p class="review-note">تبدأ الجولة تلقائياً بعد <bdi class="review-timer" dir="ltr">${mmss(s)}</bdi></p>`;
 }
+// Restkarten aller Spieler am Rundenende: erst das eigene Team, dann der Gegner.
+function handsHTML(st) {
+  const n = st.players.length, order = Array.from({ length: n }, (_, k) => (ui.me + k) % n);
+  const seats = order.filter(p => teamOf(p) === teamOf(ui.me)).concat(order.filter(p => teamOf(p) !== teamOf(ui.me)));
+  return `<div class="end-hands">${seats.map(p => {
+    const h = st.hands[p] || [];
+    const name = p === ui.me ? "أنت" : st.players[p].name;
+    return `<div class="end-hand ${teamOf(p) === teamOf(ui.me) ? "us" : ""}"><span>${esc(name)} <small>${h.length}</small></span>
+      <div class="end-cards">${h.length && typeof h[0] === "object" ? h.map(c => cardHTML(c)).join("") : '<em class="empty">—</em>'}</div></div>`;
+  }).join("")}</div>`;
+}
 function summaryHTML(st) {
   const us = teamOf(ui.me), them = 1 - us;
   const res = [st.lastRound.teams[us], st.lastRound.teams[them]];
@@ -1331,6 +1360,7 @@ function summaryHTML(st) {
       <tr class="sum"><td>هذه الجولة</td><td>${res[0].total}</td><td>${res[1].total}</td></tr>
       <tr class="sum"><td>المجموع</td><td>${st.scores[us]}</td><td>${st.scores[them]}</td></tr>
     </table>
+    ${handsHTML(st)}
     <div class="summary-actions">
     ${st.phase === "gameOver" ? '<button class="btn primary" data-act="quit">لعبة جديدة</button>'
       : waiting ? '<button class="btn" disabled>بانتظار اللاعبين …</button>'
@@ -1535,7 +1565,9 @@ function netBadge() {
 // Was ein Mitspieler sehen darf: eigene Hand ja, fremde Hände und Stapel nur als Anzahl.
 function redact(st, seat) {
   const c = clone(st);
-  c.hands = st.hands.map((h, p) => p === seat ? h : h.map(() => 0));
+  // Am Rundenende sind alle Hände offen (Ergebnis zeigt sie).
+  const open = st.phase === "roundOver" || st.phase === "gameOver";
+  c.hands = st.hands.map((h, p) => p === seat || open ? h : h.map(() => 0));
   c.stock = st.stock.map(() => 0);
   c.pots = st.pots.map(p => p.map(() => 0));
   c.players = st.players.map(p => ({ name: p.name, human: !!p.human, offline: !!p.offline, bot: !!p.bot }));
