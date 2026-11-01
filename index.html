@@ -1116,7 +1116,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V3.0 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V3.1 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -2320,14 +2320,23 @@ function timerHTML(st, mine = false) {
 }
 // Zeit abgelaufen: nach Phase 1 vom Stapel ziehen, nach Phase 2 die erste Karte von rechts abwerfen
 // (so wie der Spieler seine Hand auf dem Bildschirm sieht; die Hand wird links nach rechts gezeigt).
+// Ausnahme: Ablage genommen und nichts ausgelegt, siehe unten.
+const RETURN_GRACE_MS = 15000;
 function timeoutMove(st) {
   if (st.phase === "draw") {
     try { drawStock(st); } catch (e) { takeDiscard(st); }
     st.log += " (انتهى الوقت)";
     return;
   }
-  if (st.mustMeld) returnDiscard(st);
   const name = st.players[st.current].name;
+  // Ablage genommen, aber nichts ausgelegt: alles zurück, eine Karte vom Stapel, und noch 15 Sekunden zum Abwerfen.
+  // Läuft auch diese Zeit ab, wird wie sonst die erste Karte von rechts abgeworfen.
+  if (st.mustMeld) {
+    returnDiscard(st);
+    st.deadline = Date.now() + RETURN_GRACE_MS;
+    st.log = name + ": انتهى الوقت. " + st.log;
+    return;
+  }
   let ok = false;
   for (const c of st.hands[st.current].slice().reverse()) { try { discardCard(st, c.id); ok = true; break; } catch (e) {} }
   if (!ok) nextTurn(st);
