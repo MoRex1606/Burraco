@@ -185,7 +185,10 @@ body:has(#app.table) { margin-top: 0; }
 .discard-cards .card + .card { margin-left: var(--overlap, -10px); }
 /* Ziehstapel rechts neben كومة الحرق, in derselben Zeile: die Ablage wird schmaler, die Höhe bleibt gleich. */
 .discard-bar { display: flex; align-items: stretch; gap: 8px; }
-.discard-bar > .discard-row { flex: 1; min-width: 0; }
+.discard-wrap { flex: 1; min-width: 0; display: flex; position: relative; }
+/* Nach dem Nehmen der كومة الحرق: أرجِع mittig über der (leeren) Ablage, ارمِ bleibt unten an seinem Platz. */
+.discard-wrap > .return-btn { position: absolute; z-index: 3; left: 50%; top: 50%; translate: -50% -50%; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
+.discard-wrap > .discard-row { flex: 1; min-width: 0; }
 /* Warnung, wenn der Ziehstapel zur Neige geht: ab 8 Karten gelb, ab 4 Karten rot leuchtend. */
 .pile-label.few { background: rgba(130,96,8,.95); border-color: #ffd84a; color: #fff1b8; box-shadow: 0 0 10px 3px rgba(255,214,60,.85); }
 .pile-label.few small { color: #fff1b8; }
@@ -1182,18 +1185,16 @@ function renderTable() {
     <div class="discard-bar">
     <button class="pile draw-pile ${canDraw && st.stock.length ? "ready" : ""}" data-act="draw" ${canDraw ? "" : "disabled"} aria-label="اسحب من الكومة">
       <div class="stack">${st.stock.length ? backs(2) : '<div class="slot"></div>'}<span class="pile-label${st.stock.length <= 4 ? " low" : st.stock.length <= 8 ? " few" : ""}">السحب<small>${st.stock.length}</small></span></div></button>
-    <button class="discard-row ${canDraw && top ? "ready" : ""}" data-act="take" ${canDraw && top ? "" : "disabled"} aria-label="خذ كومة الحرق">
+    <div class="discard-wrap"><button class="discard-row ${canDraw && top ? "ready" : ""}" data-act="take" ${canDraw && top ? "" : "disabled"} aria-label="خذ كومة الحرق">
       <span class="discard-label">كومة الحرق ${st.discard.length}${canDraw && top ? " · اضغط لأخذها" : ""}</span>
       <div class="discard-cards" style="--overlap:${discardOverlap(st.discard.length)}px">
         ${st.discard.length ? st.discard.map(c => cardHTML(c)).join("") : '<div class="slot"></div>'}</div>
-    </button></div>
+    </button>${canPlay && st.mustMeld ? `<button class="btn return-btn" data-act="return">أرجِع${r.returnPenalty ? ` (−${r.returnPenalty})` : ""}</button>` : ""}</div></div>
     <div class="mside us">${meldsHTML(st, us, "نحن")}</div></div>
     <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st)} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small><small class="goal">${goalHTML(r, " · ")}</small></div>
     <div class="actions">${over ? `<button class="btn primary" data-act="result">النتيجة</button>${st.phase === "roundOver" ? `<span class="review-chip">⏱ <bdi class="review-timer" dir="ltr">${mmss(reviewLeft(st) ?? 0)}</bdi></span>` : ""}</div></div>` : `
       <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
-      ${canPlay && st.mustMeld
-        ? `<button class="btn" data-act="return">أرجِع${r.returnPenalty ? ` (−${r.returnPenalty})` : ""}</button>`
-        : `<button class="btn" data-act="discard" ${canPlay && ui.selected.size === 1 ? "" : "disabled"}>ارمِ</button>`}
+      <button class="btn" data-act="discard" ${canPlay && !st.mustMeld && ui.selected.size === 1 ? "" : "disabled"}>ارمِ</button>
       ${canBot ? '<button class="btn" data-act="botseat">دع الكمبيوتر يلعب عنه</button>' : ""}
     </div></div>`}
     <div class="hand" style="--overlap:${handOverlap(hand.length)}px">${sayHTML(ui.me)}<div class="hand-inner">
