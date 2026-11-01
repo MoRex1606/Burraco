@@ -175,6 +175,11 @@ body:has(#app.table) { margin-top: 0; }
 /* Ziehstapel rechts neben كومة الحرق, in derselben Zeile: die Ablage wird schmaler, die Höhe bleibt gleich. */
 .discard-bar { display: flex; align-items: stretch; gap: 8px; }
 .discard-bar > .discard-row { flex: 1; min-width: 0; }
+/* Warnung, wenn der Ziehstapel zur Neige geht: ab 8 Karten gelb, ab 4 Karten rot leuchtend. */
+.pile-label.few { background: rgba(130,96,8,.95); border-color: #ffd84a; color: #fff1b8; box-shadow: 0 0 10px 3px rgba(255,214,60,.85); }
+.pile-label.few small { color: #fff1b8; }
+.pile-label.low { background: rgba(80,12,12,.92); border-color: #ff5a4a; color: #ffb3a8; box-shadow: 0 0 8px 2px rgba(255,70,55,.8); }
+.pile-label.low small { color: #ffb3a8; }
 .draw-pile { flex: none; justify-content: center; padding: 0 6px; --cw: 34px; }
 
 /* Kartenreihen bleiben links-nach-rechts, auch im arabischen Layout. */
@@ -1111,7 +1116,7 @@ function renderTable() {
     <div class="melds panel"><div class="mside them">${meldsHTML(st, them, "الخصم")}</div>
     <div class="discard-bar">
     <button class="pile draw-pile ${canDraw && st.stock.length ? "ready" : ""}" data-act="draw" ${canDraw ? "" : "disabled"} aria-label="اسحب من الكومة">
-      <div class="stack">${st.stock.length ? backs(2) : '<div class="slot"></div>'}<span class="pile-label">السحب<small>${st.stock.length}</small></span></div></button>
+      <div class="stack">${st.stock.length ? backs(2) : '<div class="slot"></div>'}<span class="pile-label${st.stock.length <= 4 ? " low" : st.stock.length <= 8 ? " few" : ""}">السحب<small>${st.stock.length}</small></span></div></button>
     <button class="discard-row ${canDraw && top ? "ready" : ""}" data-act="take" ${canDraw && top ? "" : "disabled"} aria-label="خذ كومة الحرق">
       <span class="discard-label">كومة الحرق ${st.discard.length}${canDraw && top ? " · اضغط لأخذها" : ""}</span>
       <div class="discard-cards" style="--overlap:${discardOverlap(st.discard.length)}px">
