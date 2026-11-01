@@ -225,6 +225,7 @@ body:has(#app.table) { margin-top: 0; }
 .status { text-align: center; min-height: 34px; }
 /* Immer genau eine Zeile, damit sich die Höhe des Spielbereichs darüber nie ändert. */
 .status p { margin: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status p:has(.timer.mine) { padding: 8px 12px; margin: -8px -12px; } /* Platz fürs Leuchten trotz overflow: hidden */
 .status p.err { color: var(--warn); font-weight: 600; }
 .status small { font-size: 11px; color: var(--ink-dim); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .actions { display: flex; justify-content: center; gap: 8px; }
@@ -413,7 +414,11 @@ body:has(#app.table) { margin-top: 0; }
 .seat.offline .name { opacity: .5; text-decoration: line-through; }
 .timer { display: inline-block; min-width: 2.6em; margin-inline-start: 6px; padding: 0 6px; border-radius: 99px; font-weight: 700;
   font-variant-numeric: tabular-nums; background: rgba(0,0,0,.35); color: var(--ink); direction: ltr; }
+/* Eigener Zug (ziehen oder ablegen): der Timer vor der eigenen Hand leuchtet gold. */
+.timer.mine { background: var(--brass); color: #1a1408; box-shadow: 0 0 0 2px rgba(220,180,98,.35), 0 0 14px rgba(220,180,98,.8); animation: tglow 1.6s ease-in-out infinite; }
+@keyframes tglow { 50% { box-shadow: 0 0 0 3px rgba(220,180,98,.5), 0 0 22px rgba(220,180,98,1); } }
 .timer.low { background: var(--warn); color: #fff; animation: tpulse 1s infinite; }
+.timer.mine.low { box-shadow: 0 0 0 2px rgba(220,180,98,.6), 0 0 16px rgba(220,180,98,.9); }
 @keyframes tpulse { 50% { opacity: .6; } }
 .net-badge { font-size: 11px; color: var(--warn); }
 
@@ -1191,7 +1196,7 @@ function renderTable() {
         ${st.discard.length ? st.discard.map(c => cardHTML(c)).join("") : '<div class="slot"></div>'}</div>
     </button>${canPlay && st.mustMeld ? `<button class="btn return-btn" data-act="return">أرجِع${r.returnPenalty ? ` (−${r.returnPenalty})` : ""}</button>` : ""}</div></div>
     <div class="mside us">${meldsHTML(st, us, "نحن")}</div></div>
-    <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st)} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small><small class="goal">${goalHTML(r, " · ")}</small></div>
+    <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st, st.current === ui.me && (st.phase === "draw" || st.phase === "play"))} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small><small class="goal">${goalHTML(r, " · ")}</small></div>
     <div class="actions">${over ? `<button class="btn primary" data-act="result">النتيجة</button>${st.phase === "roundOver" ? `<span class="review-chip">⏱ <bdi class="review-timer" dir="ltr">${mmss(reviewLeft(st) ?? 0)}</bdi></span>` : ""}</div></div>` : `
       <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
       <button class="btn" data-act="discard" ${canPlay && !st.mustMeld && ui.selected.size === 1 ? "" : "disabled"}>ارمِ</button>
@@ -2309,9 +2314,9 @@ function pauseHTML(st) {
 function timerLeft(st) {
   return st && st.deadline && timerActive(st) ? Math.max(0, Math.ceil((st.deadline - clockNow(st)) / 1000)) : null;
 }
-function timerHTML(st) {
+function timerHTML(st, mine = false) {
   const s = timerLeft(st);
-  return s === null ? "" : `<span class="timer ${s <= 10 ? "low" : ""}">⏱ ${s}</span>`;
+  return s === null ? "" : `<span class="timer ${mine ? "mine" : ""} ${s <= 10 ? "low" : ""}">⏱ ${s}</span>`;
 }
 // Zeit abgelaufen: nach Phase 1 vom Stapel ziehen, nach Phase 2 die erste Karte von rechts abwerfen
 // (so wie der Spieler seine Hand auf dem Bildschirm sieht; die Hand wird links nach rechts gezeigt).
