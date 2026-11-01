@@ -289,7 +289,7 @@ body:has(#app.table) { margin-top: 0; }
   .piles { gap: 16px; }
   .discard-row { padding: 2px 8px 4px; gap: 2px; }
   .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
-  .melds { grid-area: melds; }
+  .melds { grid-area: melds; padding-right: 16px; } /* etwas Platz, damit die Hamza von „أخذ“ im Rahmen bleibt */
   /* Querformat: im Hintergrund am rechten Rand, Auslagen liegen darüber; das Spielfeld wird nicht schmaler. */
   .took { right: -4px; z-index: 0; }
   /* Hinweistext rechts oben, Tasten eine Zeile darunter (ebenfalls rechts). */
