@@ -82,6 +82,11 @@ button { font: inherit; color: inherit; }
 /* Fliegende Karten (Animation zwischen Stapel, Händen, Ablage und Auslagen) */
 .fly-layer { position: fixed; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
 .fly-layer > .card, .fly-layer > .back { position: absolute; margin: 0; transform-origin: 0 0; will-change: transform; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+/* Projektwert: gleicher Look wie das silberne Schild auf der Auslage, fliegt aus der Mitte darauf. */
+.proj-pop { position: fixed; z-index: 4; pointer-events: none; box-sizing: border-box; display: grid; place-items: center;
+  background: rgb(205,210,218); border: 1px solid rgba(255,255,255,.85); box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  color: #1e2a24; font-weight: 800; line-height: 1; font-family: var(--f-body); font-variant-numeric: tabular-nums;
+  transform-origin: 50% 50%; will-change: transform; }
 /* „مور“ groß einblenden, wenn jemand den Mor nimmt: grün für das eigene Team, rot für den Gegner */
 .mor-pop { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 4; }
 .mor-pop span { font: 800 min(38vw, 34vh, 260px) / 1 var(--f-body); color: #3fd27a; opacity: 0;
@@ -1206,8 +1211,48 @@ function animModel(st) {
   st.hands[ui.me].forEach(c => put(c, "h"));
   st.melds.forEach(ms => ms.forEach(m => m.cards.forEach(c => put(c, "m" + m.id))));
   st.discard.forEach(c => put(c, "d"));
-  return { key: ui.gen + "|" + ui.me + "|" + st.players.length + "|" + st.scores.join(",") + "|" + st.dealer,
+  const projects = new Map();
+  st.melds.forEach((ms, t) => ms.forEach(m => { if (isProject(m, st.rules)) projects.set(m.id, { v: meldBonus(m, st.rules), t }); }));
+  return { projects, key: ui.gen + "|" + ui.me + "|" + st.players.length + "|" + st.scores.join(",") + "|" + st.dealer,
     stock: st.stock.length, pots: st.pots.length, current: st.current, me: ui.me, loc, cards };
+}
+// Neues Projekt (oder höherer Wert): Wert groß in der Mitte zeigen, dann klein auf das Schild des Projekts fliegen.
+const PROJ_MS = 1900, projFlying = new Map();
+function projectPops(old, now) {
+  for (const [id, p] of now.projects) {
+    const o = old.projects.get(id);
+    if (o && o.v >= p.v) continue;
+    const tag = app.querySelector(`.meld[data-meld="${id}"] .tag`);
+    if (tag) projectPop(id, tag, p.v, FLY_MS);
+  }
+}
+function projectPop(id, tag, value, delay) {
+  const r = tag.getBoundingClientRect();
+  if (!r.width) return;
+  const cs = getComputedStyle(tag);
+  const el = document.createElement("span");
+  el.className = "proj-pop";
+  el.textContent = value;
+  el.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;font-size:${cs.fontSize};border-radius:${cs.borderRadius}`;
+  document.body.appendChild(el);
+  projFlying.set(id, Date.now() + delay + PROJ_MS);
+  tag.style.visibility = "hidden";
+  const dx = innerWidth / 2 - (r.left + r.width / 2), dy = innerHeight / 2 - (r.top + r.height / 2);
+  const k = Math.min(innerWidth * .5, innerHeight * .3, 260) / r.width;
+  const mid = `translate(${dx}px, ${dy}px)`;
+  const anim = el.animate([
+    { transform: `${mid} scale(${k * .2})`, opacity: 0, offset: 0 },
+    { transform: `${mid} scale(${k * 1.08})`, opacity: 1, offset: .2 },
+    { transform: `${mid} scale(${k})`, opacity: 1, offset: .5 },
+    { transform: "translate(0, 0) scale(1)", opacity: 1, offset: 1 }
+  ], { duration: PROJ_MS, delay, easing: "cubic-bezier(.4,0,.3,1)", fill: "both" });
+  const done = () => {
+    el.remove();
+    if (projFlying.get(id) > Date.now() + 50) return;
+    projFlying.delete(id);
+    app.querySelectorAll(`.meld[data-meld="${id}"] .tag`).forEach(t => { t.style.visibility = ""; });
+  };
+  anim.onfinish = done; anim.oncancel = done;
 }
 function animCapture() {
   if (ui.screen !== "table" || !app.querySelector(".board")) return null;
@@ -1227,9 +1272,15 @@ function animPlay(before) {
   const potTaken = old && old.key === now.key && now.stock <= old.stock && now.pots < old.pots;
   if (potTaken) { morPop(teamOf(old.current) === teamOf(now.me)); animHoldUntil = Date.now() + MOR_DELAY + FLY_MS + 400; }
   // Neue Runde oder neues Spiel (Stapel wächst): nicht animieren, sonst flögen alle Karten auf einmal.
+  // Schilder, deren Wert gerade noch fliegt, bleiben bis zur Landung unsichtbar.
+  for (const [id, until] of projFlying) {
+    if (until <= Date.now()) projFlying.delete(id);
+    else app.querySelectorAll(`.meld[data-meld="${id}"] .tag`).forEach(t => { t.style.visibility = "hidden"; });
+  }
   if (!old || !before || REDUCED_MOTION.matches || old.key !== now.key || now.stock > old.stock) return;
   const after = animCapture();
   if (!after) return;
+  projectPops(old, now);
   // Karten, die noch unterwegs sind, bleiben an ihrem Ziel unsichtbar, auch wenn inzwischen neu gezeichnet wurde.
   for (const [id, until] of flying) {
     if (until <= Date.now()) flying.delete(id);
