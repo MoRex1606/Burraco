@@ -110,6 +110,12 @@ body:has(#app.table) { margin-top: 0; }
 .top .comm-btn svg { width: 16px; height: 16px; }
 #app.table:has(.top .comm) .board > .seat:first-child { translate: -18px 0; }
 .top-side.end { justify-content: flex-end; }
+/* Pause: Kopfzeile bleibt über der Abdeckung bedienbar (✕, Pause-Taste, Nachrichten). */
+#app.paused .top button { position: relative; z-index: 6; }
+.pause-btn.on { background: var(--brass); color: var(--felt-deep); }
+.pause-overlay .summary { text-align: center; display: flex; width: min(100%, 360px); padding: 20px; }
+.pause-sign { display: grid; place-items: center; color: var(--brass); }
+.pause-sign svg { width: 48px; height: 48px; fill: none; stroke: currentColor; stroke-linecap: round; }
 /* Hochformat: Punkte stehen nur noch auf der Tafel; der obere Mitspieler rückt in die frei gewordene Mitte der Kopfzeile. */
 .board > .seat:first-child { margin-top: calc(-1 * var(--top-h, 42px)); position: relative; z-index: 1; align-self: center; pointer-events: none; }
 .icon-btn { background: none; border: 0; color: var(--brass); font-size: 20px; padding: 4px 8px; cursor: pointer; }
@@ -968,6 +974,7 @@ const LANDSCAPE = window.matchMedia("(orientation: landscape) and (max-height: 5
 const TABLET = window.matchMedia("(orientation: landscape) and (min-height: 561px) and (min-width: 900px)");
 function render() {
   app.classList.toggle("table", ui.screen === "table");
+  if (ui.screen !== "table") app.classList.remove("paused");
   if (ui.st && !(net && !net.host)) syncTimer(ui.st);
   if (ui.st && net && !net.host) sendHandOrder();
   // Während eine Karte gezogen wird, nicht neu zeichnen (Computer-Züge laufen weiter).
@@ -1095,7 +1102,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V2.6 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V2.7 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1153,6 +1160,7 @@ function renderTable() {
       <div class="top-side end">
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
         : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
+      ${canPause(st) ? `<button class="comm-btn pause-btn ${st.paused ? "on" : ""}" data-act="pause" aria-pressed="${!!st.paused}" aria-label="${st.paused ? "تابع اللعب" : "أوقف اللعب مؤقتاً"}">${icon(st.paused ? SVG.play : SVG.pause)}</button>` : ""}
       <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button></div>
     </div>
     <div class="board">${seatHTML(st, rel(four ? 2 : 1), false)}
@@ -1187,7 +1195,9 @@ function renderTable() {
   if (over && !ui.peek) html += summaryHTML(st);
   html += chatPanelHTML();
   if (ui.sheet) html += sheetHTML(st);
+  if (st.paused) html += pauseHTML(st);
   if (ui.confirmQuit) html += quitConfirmHTML();
+  app.classList.toggle("paused", !!st.paused);
   const before = animCapture();
   app.innerHTML = html;
   fitMelds();
@@ -1373,7 +1383,7 @@ function fitMelds() {
 }
 // Restzeit bis zum automatischen Start der nächsten Runde (m:ss).
 function reviewLeft(st) {
-  return st && st.phase === "roundOver" && st.reviewUntil ? Math.max(0, Math.ceil((st.reviewUntil - hostNow()) / 1000)) : null;
+  return st && st.phase === "roundOver" && st.reviewUntil ? Math.max(0, Math.ceil((st.reviewUntil - clockNow(st)) / 1000)) : null;
 }
 const mmss = s => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 function reviewHTML(st) {
@@ -1431,7 +1441,7 @@ function applyAction(st, a) {
   fail("حركة غير معروفة.");
 }
 function humanAction(a) {
-  if (!isHumanTurn()) return;
+  if (!isHumanTurn() || ui.st.paused) return;
   if (net && !net.host) { ui.msg = null; return netSend({ t: "act", a }); }
   try {
     applyAction(ui.st, a);
@@ -1454,7 +1464,12 @@ async function runComputer() {
   ui.thinking = true;
   const gen = ui.gen;
   const alive = () => gen === ui.gen;
-  const step = async () => { render(); await sleep(Math.max(650, animHoldUntil - Date.now())); return alive(); };
+  const step = async () => {
+    render(); await sleep(Math.max(650, animHoldUntil - Date.now()));
+    // Pause: der Computer wartet, bis weitergespielt wird.
+    while (st.paused && alive()) await sleep(250);
+    return alive();
+  };
   try {
     while ((st.phase === "draw" || st.phase === "play") && (!st.players[st.current].human || st.players[st.current].bot)) {
       if (!(await step())) return;
@@ -1508,6 +1523,7 @@ app.addEventListener("click", e => {
   if (act === "sheet") { ui.sheet = true; return render(); }
   if (act === "sheetclose") { if (e.target === el || el.tagName === "BUTTON") { ui.sheet = false; render(); } return; }
   if (act === "askquit") return askQuit();
+  if (act === "pause") return togglePause();
   if (act === "cancelquit") { ui.confirmQuit = null; return render(); }
   if (act === "quit" && ui.confirmQuit && Date.now() < ui.confirmQuit.until) return;
   if (act === "quit") ui.confirmQuit = null;
@@ -1725,6 +1741,7 @@ function hostOnData(conn, d) {
   if (d.t === "act") {
     const st = ui.st, seat = hostPlayer(conn.cid);
     if (!st || seat < 0) return;
+    if (st.paused) { conn.send({ t: "err", msg: "اللعبة متوقفة مؤقتاً." }); return; }
     if (st.current !== seat || ui.thinking || !(st.phase === "draw" || st.phase === "play")) {
       conn.send({ t: "err", msg: "ليس دورك." }); return;
     }
@@ -2041,6 +2058,8 @@ const SVG = {
   chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10.5h.01M12 10.5h.01M16 10.5h.01" stroke-width="2.6"/>',
   sheet: '<path d="M6 3h9l3 3v15H6z"/><path d="M9 8h.01M9 12h.01M9 16h.01" stroke-width="2.6"/><path d="M12 8h3M12 12h3M12 16h3"/>',
   slash: '<path d="M4 4l16 16"/>',
+  pause: '<path d="M9 5v14M15 5v14" stroke-width="3"/>',
+  play: '<path d="M8 5l11 7-11 7z" fill="currentColor"/>',
 };
 const icon = (p, off) => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}${off ? SVG.slash : ""}</svg>`;
 function commBar(chat) {
@@ -2247,8 +2266,40 @@ function addTurnTime(st) {
 }
 // Gäste rechnen mit der Uhr des Gastgebers (Abweichung kommt mit jeder Nachricht).
 const hostNow = () => Date.now() + (net && !net.host && net.skew || 0);
+// Während der Pause steht die Uhr beim Zeitpunkt, an dem pausiert wurde.
+const clockNow = st => st.paused ? st.paused.at : hostNow();
+
+// ----- Pause -----
+// Online darf nur der Gastgeber pausieren, im Spiel gegen den Computer der Spieler selbst.
+// Die Pause steht im Spielstand (st.paused = { at }), damit alle Geräte sie sehen und sie ein Neuladen übersteht.
+// Beim Weiterspielen werden Zugzeit und Rundenpause um die Pausendauer verschoben.
+const canPause = st => !(net && !net.host) && st.phase !== "gameOver";
+function togglePause() {
+  const st = ui.st;
+  if (!st || !canPause(st)) return;
+  if (st.paused) {
+    const d = Date.now() - st.paused.at;
+    if (st.deadline) st.deadline += d;
+    if (st.reviewUntil) st.reviewUntil += d;
+    st.paused = null;
+  } else {
+    st.paused = { at: Date.now() };
+    ui.confirmQuit = null;
+  }
+  render();
+  runComputer();
+}
+function pauseHTML(st) {
+  const who = net ? "أوقف المضيف اللعبة مؤقتاً." : "";
+  return `<div class="overlay pause-overlay"><div class="summary">
+    <div class="pause-sign">${icon(SVG.pause)}</div>
+    <h2>اللعبة متوقفة مؤقتاً</h2>
+    ${who ? `<p class="net-note">${who}</p>` : ""}
+    ${canPause(st) ? '<button class="btn primary" data-act="pause">تابع اللعب</button>' : '<p class="net-note">انتظر حتى يتابع المضيف اللعب.</p>'}
+  </div></div>`;
+}
 function timerLeft(st) {
-  return st && st.deadline && timerActive(st) ? Math.max(0, Math.ceil((st.deadline - hostNow()) / 1000)) : null;
+  return st && st.deadline && timerActive(st) ? Math.max(0, Math.ceil((st.deadline - clockNow(st)) / 1000)) : null;
 }
 function timerHTML(st) {
   const s = timerLeft(st);
@@ -2272,6 +2323,7 @@ function timeoutMove(st) {
 setInterval(() => {
   const st = ui.st;
   if (!st || ui.screen !== "table") return;
+  if (st.paused) return;
   if (!(net && !net.host) && !ui.thinking && st.deadline && timerActive(st) && Date.now() >= st.deadline) {
     try { timeoutMove(st); } catch (e) { if (!(e instanceof GameError)) console.error(e); st.deadline = null; }
     if (st.current === ui.me && st.hands[ui.me]) {
