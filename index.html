@@ -250,7 +250,7 @@ body:has(#app.table) { margin-top: 0; }
   font: 700 40px var(--f-arabic-display); color: rgba(220,180,98,.16);
 }
 /* „أخذ المور“ senkrecht am rechten Rand der Hälfte des Teams. Hochformat: außerhalb des Spielfelds im Rand
-   des Bildschirms; Querformat: innen, im schmalen Streifen zwischen den Auslagen und dem rechten Rahmen. */
+   des Bildschirms; Handy quer: ebenfalls außen, im Spalt rechts neben dem Rahmen; Tablet: innen im Hintergrund. */
 .melds, .mside { overflow: visible; }
 .took { position: absolute; top: 50%; right: -19px; transform: translate(50%, -50%); z-index: 2; pointer-events: none;
   writing-mode: vertical-rl; white-space: nowrap; font: 700 12px var(--f-body); color: var(--brass); letter-spacing: .02em; }
@@ -289,9 +289,9 @@ body:has(#app.table) { margin-top: 0; }
   .piles { gap: 16px; }
   .discard-row { padding: 2px 8px 4px; gap: 2px; }
   .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
-  .melds { grid-area: melds; padding-right: 16px; } /* etwas Platz, damit die Hamza von „أخذ“ im Rahmen bleibt */
-  /* Querformat: im Hintergrund am rechten Rand, Auslagen liegen darüber; das Spielfeld wird nicht schmaler. */
-  .took { right: -4px; z-index: 0; }
+  .melds { grid-area: melds; }
+  /* Querformat wie hochkant: außerhalb des Spielfelds, im Spalt rechts neben dem Rahmen. */
+  .took { right: -18px; }
   /* Hinweistext rechts oben, Tasten eine Zeile darunter (ebenfalls rechts). */
   .controls { grid-area: controls; display: flex; flex-direction: column; align-items: stretch; align-self: start; gap: 6px; }
   .controls .status { flex: none; }
