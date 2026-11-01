@@ -89,6 +89,11 @@ body:has(#app.table) { margin-top: 0; }
 .top-side { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .top .comm-btn { width: 30px; height: 30px; }
 .top .comm-btn svg { width: 17px; height: 17px; }
+/* Hochformat: Lautsprecher, Mikro und Nachrichten zwischen ✕ und dem Partner; der Partner rückt dafür etwas nach links. */
+.top .comm { position: relative; z-index: 2; gap: 4px; }
+.top .comm-btn { width: 28px; height: 28px; }
+.top .comm-btn svg { width: 16px; height: 16px; }
+#app.table:has(.top .comm) .board > .seat:first-child { translate: -18px 0; }
 .top-side.end { justify-content: flex-end; }
 /* Hochformat: Punkte stehen nur noch auf der Tafel; der obere Mitspieler rückt in die frei gewordene Mitte der Kopfzeile. */
 .board > .seat:first-child { margin-top: calc(-1 * var(--top-h, 42px)); position: relative; z-index: 1; align-self: center; pointer-events: none; }
@@ -361,6 +366,7 @@ body:has(#app.table) { margin-top: 0; }
 .comm-dock { display: none; }
 @media (orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-height: 561px) and (min-width: 900px) {
   .top .comm { display: none; }
+  #app.table:has(.top .comm) .board > .seat:first-child { translate: none; }
   .comm-dock { display: block; position: fixed; z-index: 4; left: max(10px, env(safe-area-inset-left, 0px)); bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
   .comm-dock .comm { gap: 6px; }
 }
@@ -866,9 +872,11 @@ function aiChooseDiscard(st) {
 }
 
 // ---------- Oberfläche ----------
+// Spielernamen: höchstens 10 Zeichen (z. B. „Mohammad“ geht, „Anas Alqaisi“ nicht).
+const NAME_MAX = 10;
 const app = document.getElementById("app");
 const ui = { screen: "start", mode: "teams", close: 1, speed: 1, st: null, me: 0, selected: new Set(), msg: null, thinking: false, gen: 0,
-  name: localStorage.getItem("brk-name") || "", code: "" };
+  name: (localStorage.getItem("brk-name") || "").slice(0, NAME_MAX), code: "" };
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 
@@ -1012,7 +1020,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V2.1 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V2.3 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1063,9 +1071,9 @@ function renderTable() {
   const meldScroll = [".mside.them .mscroll", ".mside.us .mscroll"].map(q => app.querySelector(q)?.scrollTop ?? 0);
 
   let html = `<div class="top">
-      <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button></div>
+      <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button>${commBar(true)}</div>
       <span class="top-mid"></span>
-      <div class="top-side end">${commBar(true)}
+      <div class="top-side end">
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
         : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
       <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button></div>
@@ -1403,7 +1411,7 @@ function hostOnData(conn, d) {
   conn.heard = Date.now();
   if (!d || typeof d !== "object") return;
   if (d.t === "hello") {
-    const cid = String(d.cid || "").slice(0, 20), name = String(d.name || "").trim().slice(0, 16) || "صديق";
+    const cid = String(d.cid || "").slice(0, 20), name = String(d.name || "").trim().slice(0, NAME_MAX) || "صديق";
     if (!cid || cid === "host") return;
     if (ui.st) {
       const idx = hostPlayer(cid);
@@ -1835,7 +1843,7 @@ function commClick(act, el, e) {
 
 // ----- Bildschirme -----
 function nameField() {
-  return `<label class="field">اسمك<input id="in-name" maxlength="16" autocomplete="nickname" value="${esc(ui.name)}" placeholder="مثلاً: أبو أحمد"></label>`;
+  return `<label class="field">اسمك<input id="in-name" maxlength="${NAME_MAX}" autocomplete="nickname" value="${esc(ui.name)}" placeholder="مثلاً: أبو أحمد"></label>`;
 }
 function renderJoin() {
   app.innerHTML = `<div class="start">
@@ -1904,7 +1912,7 @@ function renderLobby() {
 
 app.addEventListener("input", e => {
   if (e.target.id === "in-name") {
-    ui.name = e.target.value.trim().slice(0, 16);
+    ui.name = e.target.value.trim().slice(0, NAME_MAX);
     localStorage.setItem("brk-name", ui.name);
     if (net && net.host && !ui.st) hostBroadcast();
   }
