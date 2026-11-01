@@ -79,6 +79,9 @@ button { font: inherit; color: inherit; }
     var(--back);
   box-shadow: 0 1px 3px rgba(0,0,0,.45);
 }
+/* Fliegende Karten (Animation zwischen Stapel, Händen, Ablage und Auslagen) */
+.fly-layer { position: fixed; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
+.fly-layer > .card, .fly-layer > .back { position: absolute; margin: 0; transform-origin: 0 0; will-change: transform; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
 .slot { width: var(--cw); height: calc(var(--cw) * 1.42); border: 1px dashed rgba(255,255,255,.3); border-radius: 6px; box-sizing: border-box; }
 
 /* Kopf */
@@ -1027,7 +1030,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V2.4 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V2.5 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1035,7 +1038,7 @@ function seatHTML(st, p, compact) {
   const active = st.current === p && (st.phase === "draw" || st.phase === "play");
   const n = st.hands[p].length, pl = st.players[p];
   // Name und Kartenzahl liegen direkt auf den Kartenrücken, das spart eine Zeile über und unter dem Fächer.
-  return `<div class="seat ${active ? "active" : ""} ${pl.offline ? "offline" : ""}">${sayHTML(p)}
+  return `<div class="seat ${active ? "active" : ""} ${pl.offline ? "offline" : ""}" data-seat="${p}">${sayHTML(p)}
     <div class="fan">${n ? backs(Math.min(n, compact ? 4 : 8)) : '<div class="slot"></div>'}
       <div class="seat-label"><span class="name">${esc(pl.name)}${pl.bot ? " 🤖" : ""}${active ? timerHTML(st) : ""}</span><small>${n} أوراق</small></div></div></div>`;
 }
@@ -1117,9 +1120,93 @@ function renderTable() {
   html += chatPanelHTML();
   if (ui.sheet) html += sheetHTML(st);
   if (ui.confirmQuit) html += quitConfirmHTML();
+  const before = animCapture();
   app.innerHTML = html;
   fitMelds();
   [".mside.them .mscroll", ".mside.us .mscroll"].forEach((q, i) => { const el = app.querySelector(q); if (el) el.scrollTop = meldScroll[i]; });
+  animPlay(before);
+}
+
+// ---------- Kartenbewegungen animieren ----------
+// Vor und nach jedem Neuzeichnen wird verglichen, wo jede sichtbare Karte liegt (eigene Hand, Auslage, Ablage).
+// Was den Ort wechselt, fliegt vom alten zum neuen Platz. Verdeckte Karten (Stapel, Mor, fremde Hände) kennt man
+// nur als Anzahl: Sie fliegen als Rückseite zwischen Stapel/Mor und dem Platz des Spielers, der gerade dran war.
+// Das funktioniert gleich für Computer, Mitspieler und Online-Gäste, weil nur der gezeigte Zustand verglichen wird.
+let animPrev = null;
+const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
+const FLY_MS = 460, FLY_STAGGER = 40, FLY_MAX = 8;
+function animModel(st) {
+  const loc = new Map(), cards = new Map();
+  const put = (c, l) => { loc.set(c.id, l); cards.set(c.id, c); };
+  st.hands[ui.me].forEach(c => put(c, "h"));
+  st.melds.forEach(ms => ms.forEach(m => m.cards.forEach(c => put(c, "m" + m.id))));
+  st.discard.forEach(c => put(c, "d"));
+  return { key: ui.gen + "|" + ui.me + "|" + st.players.length + "|" + st.scores.join(",") + "|" + st.dealer,
+    stock: st.stock.length, pots: st.pots.length, current: st.current, me: ui.me, loc, cards };
+}
+function animCapture() {
+  if (ui.screen !== "table" || !app.querySelector(".board")) return null;
+  const r = el => el ? el.getBoundingClientRect() : null;
+  const cards = new Map(), els = new Map(), seats = new Map();
+  app.querySelectorAll(".hand [data-card], .meld [data-card], .discard-cards [data-card]").forEach(el => {
+    const id = Number(el.dataset.card); cards.set(id, r(el)); els.set(id, el);
+  });
+  app.querySelectorAll(".seat[data-seat]").forEach(el => seats.set(Number(el.dataset.seat), r(el.querySelector(".fan > .back, .fan > .slot"))));
+  return { cards, els, seats, stock: r(app.querySelector(".piles .stack > .back:last-of-type, .piles .stack > .slot")),
+    pot: r(app.querySelector(".pots > .back") || app.querySelector(".pots > .slot")) };
+}
+function animPlay(before) {
+  const st = ui.st, now = animModel(st), old = animPrev;
+  animPrev = now;
+  // Neue Runde oder neues Spiel (Stapel wächst): nicht animieren, sonst flögen alle Karten auf einmal.
+  if (!old || !before || REDUCED_MOTION.matches || old.key !== now.key || now.stock > old.stock) return;
+  const after = animCapture();
+  if (!after) return;
+  const actor = old.current, other = actor !== now.me;
+  const flights = [];
+  let stockLeft = old.stock - now.stock, potLeft = old.pots - now.pots, potToMe = false;
+  for (const [id, l] of now.loc) {
+    const o = old.loc.get(id), el = after.els.get(id);
+    if (o === l || !el) continue;
+    let from;
+    if (o) from = before.cards.get(id);
+    else if (l === "h") {
+      if (stockLeft > 0) { stockLeft--; from = before.stock; }
+      else if (potLeft > 0) { potToMe = true; from = before.pot; }
+      else from = before.stock;
+    } else from = other ? before.seats.get(actor) : before.stock;
+    if (from) flights.push({ from, to: after.cards.get(id), el, html: cardHTML(now.cards.get(id)) });
+  }
+  if (potToMe) potLeft = 0;
+  if (other) {
+    const seat = after.seats.get(actor) || before.seats.get(actor);
+    // Karten, die in eine verdeckte Hand gehen (z. B. Ablage genommen)
+    for (const [id] of old.loc) if (!now.loc.has(id) && before.cards.get(id) && seat)
+      flights.push({ from: before.cards.get(id), to: seat, html: cardHTML(old.cards.get(id)) });
+    if (seat && before.stock) for (let i = 0; i < Math.min(stockLeft, 3); i++) flights.push({ from: before.stock, to: seat, html: '<div class="back"></div>' });
+    if (seat && before.pot && potLeft > 0) for (let i = 0; i < 5; i++) flights.push({ from: before.pot, to: seat, html: '<div class="back"></div>' });
+  }
+  flights.forEach((f, i) => fly(f, Math.min(i, FLY_MAX) * FLY_STAGGER));
+}
+function fly(f, delay) {
+  const { from, to } = f;
+  if (!from || !to || !to.width || !from.width) return;
+  let layer = document.querySelector(".fly-layer");
+  if (!layer) { layer = document.createElement("div"); layer.className = "fly-layer"; document.body.appendChild(layer); }
+  const t = document.createElement("template");
+  t.innerHTML = f.html.trim();
+  const node = t.content.firstElementChild;
+  node.removeAttribute("data-card");
+  node.style.cssText = `--cw:${to.width}px;left:${to.left}px;top:${to.top}px`;
+  layer.appendChild(node);
+  if (f.el) f.el.style.visibility = "hidden";
+  const k = from.width / to.width;
+  const anim = node.animate([
+    { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${k})` },
+    { transform: "translate(0, 0) scale(1)" }
+  ], { duration: FLY_MS, delay, easing: "cubic-bezier(.25,.8,.3,1)", fill: "backwards" });
+  const done = () => { node.remove(); if (f.el) f.el.style.visibility = ""; };
+  anim.onfinish = done; anim.oncancel = done;
 }
 // Alle Auslagen beider Seiten sollen im Kasten sichtbar sein: Karten so weit verkleinern, bis nichts mehr überläuft.
 const MELD_CW_MIN = 16;
