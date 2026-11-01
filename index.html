@@ -249,7 +249,11 @@ body:has(#app.table) { margin-top: 0; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   font: 700 40px var(--f-arabic-display); color: rgba(220,180,98,.16);
 }
-.melds h3.wm span { font: 600 13px var(--f-body); color: rgba(220,180,98,.3); }
+/* „أخذ المور“ senkrecht am rechten Rand der Hälfte des Teams. Hochformat: außerhalb des Spielfelds im Rand
+   des Bildschirms; Querformat: innen, im schmalen Streifen zwischen den Auslagen und dem rechten Rahmen. */
+.melds, .mside { overflow: visible; }
+.took { position: absolute; top: 50%; right: -19px; transform: translate(50%, -50%); z-index: 2; pointer-events: none;
+  writing-mode: vertical-rl; white-space: nowrap; font: 700 12px var(--f-body); color: var(--brass); letter-spacing: .02em; }
 .mscroll { position: relative; z-index: 1; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .melds > .discard-row { flex: none; }
 /* Statuszeile links neben den Tasten (Tasten rechts). */
@@ -285,7 +289,8 @@ body:has(#app.table) { margin-top: 0; }
   .piles { gap: 16px; }
   .discard-row { padding: 2px 8px 4px; gap: 2px; }
   .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
-  .melds { grid-area: melds; }
+  .melds { grid-area: melds; padding-right: 24px; }
+  .took { right: -12px; }
   /* Hinweistext rechts oben, Tasten eine Zeile darunter (ebenfalls rechts). */
   .controls { grid-area: controls; display: flex; flex-direction: column; align-items: stretch; align-self: start; gap: 6px; }
   .controls .status { flex: none; }
@@ -320,6 +325,8 @@ body:has(#app.table) { margin-top: 0; }
   .melds hr { display: none; }
   .mside { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; padding: 10px 12px;
     background: var(--panel); border: 1px solid var(--brass-dim); border-radius: 12px; }
+  .mside { padding-right: 28px; }
+  .took { right: 14px; font-size: 14px; }
   .mside.them { grid-area: them; }
   .mside.us { grid-area: us; }
   .meld { --cw: var(--meld-cw, 44px); }
@@ -1020,7 +1027,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V2.3 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V2.4 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1042,7 +1049,7 @@ function meldsHTML(st, t, title) {
       <div class="cards">${m.cards.map(c => cardHTML(c)).join("")}${tag}</div></button>`;
   }).join("");
   // Teamname groß und blass im Hintergrund der Hälfte; Auslagen liegen darüber und dürfen ihn verdecken.
-  return `<h3 class="wm" aria-label="${title}">${title}${st.tookPot[t] ? "<span>أخذ المور</span>" : ""}</h3>
+  return `<h3 class="wm" aria-label="${title}">${title}</h3>${st.tookPot[t] ? '<span class="took">أخذ المور</span>' : ""}
     <div class="mscroll">${items ? `<div class="meld-row">${items}</div>` : ""}</div>`;
 }
 function isHumanTurn() {
