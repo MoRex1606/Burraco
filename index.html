@@ -356,15 +356,13 @@ body:has(#app.table) { margin-top: 0; }
 .comm-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .comm-btn.off { color: var(--ink-dim); opacity: .75; }
 .comm-btn.live { background: var(--brass); color: #1a1408; border-color: var(--brass); box-shadow: 0 0 0 3px rgba(220,180,98,.25); }
-/* Am Tisch: Lautsprecher, Mikro und Nachrichten unten links.
-   Hochformat: direkt über der Hand am linken Rand, der Hinweistext rückt dafür nach rechts.
-   Querformat: fest in der Bildschirmecke links unten, neben der Hand. */
-.comm-dock { position: absolute; z-index: 4; left: 0; bottom: calc(100% - 16px); }
-.comm-dock .comm { gap: 6px; }
-#app.table:has(.comm-dock) .controls .status { padding-left: 118px; }
+/* Querformat: Lautsprecher, Mikro und Nachrichten fest in der Bildschirmecke links unten, neben der Hand.
+   Hochformat bleibt wie bisher (Tasten in der Kopfzeile). */
+.comm-dock { display: none; }
 @media (orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-height: 561px) and (min-width: 900px) {
-  .comm-dock { position: fixed; left: max(10px, env(safe-area-inset-left, 0px)); bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
-  #app.table:has(.comm-dock) .controls .status { padding-left: 0; }
+  .top .comm { display: none; }
+  .comm-dock { display: block; position: fixed; z-index: 4; left: max(10px, env(safe-area-inset-left, 0px)); bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+  .comm-dock .comm { gap: 6px; }
 }
 .lobby-voice { display: flex; align-items: center; gap: 10px; justify-content: center; }
 .top:has(.comm) .score { min-width: 52px; padding-inline: 8px; }
@@ -1067,7 +1065,7 @@ function renderTable() {
   let html = `<div class="top">
       <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button></div>
       <span class="top-mid"></span>
-      <div class="top-side end">
+      <div class="top-side end">${commBar(true)}
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
         : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
       <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button></div>
