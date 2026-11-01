@@ -953,8 +953,8 @@ function aiChooseDiscard(st) {
 }
 
 // ---------- Oberfläche ----------
-// Spielernamen: höchstens 10 Zeichen (z. B. „Mohammad“ geht, „Anas Alqaisi“ nicht).
-const NAME_MAX = 10;
+// Spielernamen: höchstens 8 Zeichen (z. B. „Mohammad“ geht, „Anas Alqaisi“ nicht).
+const NAME_MAX = 8;
 const app = document.getElementById("app");
 const ui = { screen: "start", mode: "teams", close: 1, speed: 1, st: null, me: 0, selected: new Set(), msg: null, thinking: false, gen: 0,
   name: (localStorage.getItem("brk-name") || "").slice(0, NAME_MAX), code: "" };
@@ -1102,7 +1102,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V2.7 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V2.8 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
