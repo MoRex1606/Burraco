@@ -172,6 +172,10 @@ body:has(#app.table) { margin-top: 0; }
 .discard-row.ready .discard-label { color: var(--brass); }
 .discard-cards { display: flex; --cw: 40px; min-height: calc(40px * 1.42); }
 .discard-cards .card + .card { margin-left: var(--overlap, -10px); }
+/* Ziehstapel rechts neben كومة الحرق, in derselben Zeile: die Ablage wird schmaler, die Höhe bleibt gleich. */
+.discard-bar { display: flex; align-items: stretch; gap: 8px; }
+.discard-bar > .discard-row { flex: 1; min-width: 0; }
+.draw-pile { flex: none; justify-content: center; padding: 0 6px; --cw: 34px; }
 
 /* Kartenreihen bleiben links-nach-rechts, auch im arabischen Layout. */
 .card, .mid, .piles, .pots, .fan, .fanned, .hand-inner, .discard-cards, .meld .cards { direction: ltr; }
@@ -265,7 +269,7 @@ body:has(#app.table) { margin-top: 0; }
 .took { position: absolute; top: 50%; right: -19px; transform: translate(50%, -50%); z-index: 2; pointer-events: none;
   writing-mode: vertical-rl; white-space: nowrap; font: 700 12px var(--f-body); color: var(--brass); letter-spacing: .02em; }
 .mscroll { position: relative; z-index: 1; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.melds > .discard-row { flex: none; }
+.melds > .discard-bar { flex: none; }
 /* Statuszeile links neben den Tasten (Tasten rechts). */
 .controls { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; }
 .controls .status { flex: 1; min-width: 0; min-height: 0; }
@@ -298,6 +302,7 @@ body:has(#app.table) { margin-top: 0; }
   .seat { --cw: 24px; }
   .piles { gap: 16px; }
   .discard-row { padding: 2px 8px 4px; gap: 2px; }
+  .draw-pile { --cw: 28px; }
   .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
   .melds { grid-area: melds; }
   /* Querformat wie hochkant: außerhalb des Spielfelds, im Spalt rechts neben dem Rahmen. */
@@ -331,7 +336,7 @@ body:has(#app.table) { margin-top: 0; }
   .top { grid-area: top; }
   .board { grid-area: board; display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .board .mid { align-self: stretch; }
-  .discard-row { grid-area: discard; }
+  .discard-bar { grid-area: discard; }
   .melds { display: contents; }
   .melds hr { display: none; }
   .mside { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; padding: 10px 12px;
@@ -1037,7 +1042,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V2.5 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V2.6 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1099,18 +1104,19 @@ function renderTable() {
     <div class="mid">
       ${four ? seatHTML(st, rel(3), true) : "<span></span>"}
       <div class="piles">
-        <button class="pile ${canDraw && st.stock.length ? "ready" : ""}" data-act="draw" ${canDraw ? "" : "disabled"} aria-label="اسحب من الكومة">
-          <div class="stack">${st.stock.length ? backs(2) : '<div class="slot"></div>'}<span class="pile-label">السحب<small>${st.stock.length}</small></span></div></button>
         <div class="pile" aria-label="كومتا المور"><div class="pots">${[0, 1].map(i => i < st.pots.length ? '<div class="back"></div>' : '<div class="slot"></div>').join("")}<span class="pile-label">المور</span></div></div>
       </div>
       ${four ? seatHTML(st, rel(1), true) : "<span></span>"}
     </div></div>
     <div class="melds panel"><div class="mside them">${meldsHTML(st, them, "الخصم")}</div>
+    <div class="discard-bar">
+    <button class="pile draw-pile ${canDraw && st.stock.length ? "ready" : ""}" data-act="draw" ${canDraw ? "" : "disabled"} aria-label="اسحب من الكومة">
+      <div class="stack">${st.stock.length ? backs(2) : '<div class="slot"></div>'}<span class="pile-label">السحب<small>${st.stock.length}</small></span></div></button>
     <button class="discard-row ${canDraw && top ? "ready" : ""}" data-act="take" ${canDraw && top ? "" : "disabled"} aria-label="خذ كومة الحرق">
       <span class="discard-label">كومة الحرق ${st.discard.length}${canDraw && top ? " · اضغط لأخذها" : ""}</span>
       <div class="discard-cards" style="--overlap:${discardOverlap(st.discard.length)}px">
         ${st.discard.length ? st.discard.map(c => cardHTML(c)).join("") : '<div class="slot"></div>'}</div>
-    </button>
+    </button></div>
     <div class="mside us">${meldsHTML(st, us, "نحن")}</div></div>
     <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st)} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
     <div class="actions">
@@ -1161,7 +1167,7 @@ function animCapture() {
     const id = Number(el.dataset.card); cards.set(id, r(el)); els.set(id, el);
   });
   app.querySelectorAll(".seat[data-seat]").forEach(el => seats.set(Number(el.dataset.seat), r(el.querySelector(".fan > .back, .fan > .slot"))));
-  return { cards, els, seats, stock: r(app.querySelector(".piles .stack > .back:last-of-type, .piles .stack > .slot")),
+  return { cards, els, seats, stock: r(app.querySelector(".draw-pile .stack > .back:last-of-type, .draw-pile .stack > .slot")),
     pot: r(app.querySelector(".pots > .back") || app.querySelector(".pots > .slot")) };
 }
 function animPlay(before) {
