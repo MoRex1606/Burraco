@@ -356,6 +356,16 @@ body:has(#app.table) { margin-top: 0; }
 .comm-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .comm-btn.off { color: var(--ink-dim); opacity: .75; }
 .comm-btn.live { background: var(--brass); color: #1a1408; border-color: var(--brass); box-shadow: 0 0 0 3px rgba(220,180,98,.25); }
+/* Am Tisch: Lautsprecher, Mikro und Nachrichten unten links.
+   Hochformat: direkt über der Hand am linken Rand, der Hinweistext rückt dafür nach rechts.
+   Querformat: fest in der Bildschirmecke links unten, neben der Hand. */
+.comm-dock { position: absolute; z-index: 4; left: 0; bottom: calc(100% - 16px); }
+.comm-dock .comm { gap: 6px; }
+#app.table:has(.comm-dock) .controls .status { padding-left: 118px; }
+@media (orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-height: 561px) and (min-width: 900px) {
+  .comm-dock { position: fixed; left: max(10px, env(safe-area-inset-left, 0px)); bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+  #app.table:has(.comm-dock) .controls .status { padding-left: 0; }
+}
 .lobby-voice { display: flex; align-items: center; gap: 10px; justify-content: center; }
 .top:has(.comm) .score { min-width: 52px; padding-inline: 8px; }
 .seat, .hand { position: relative; }
@@ -1004,7 +1014,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V2.0 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V2.1 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1057,7 +1067,7 @@ function renderTable() {
   let html = `<div class="top">
       <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button></div>
       <span class="top-mid"></span>
-      <div class="top-side end">${commBar(true)}
+      <div class="top-side end">
       ${net ? `<span class="goal"><span class="net-badge">${net.host ? "المضيف<br>" : ""}${netBadge()}</span></span>`
         : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
       <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button></div>
@@ -1088,7 +1098,7 @@ function renderTable() {
       ${canBot ? '<button class="btn" data-act="botseat">دع الكمبيوتر يلعب عنه</button>' : ""}
     </div></div>
     <div class="hand" style="--overlap:${handOverlap(hand.length)}px">${sayHTML(ui.me)}<div class="hand-inner">
-      ${hand.map(c => cardHTML(c, ui.selected.has(c.id) ? "sel" : "")).join("")}</div></div>`;
+      ${hand.map(c => cardHTML(c, ui.selected.has(c.id) ? "sel" : "")).join("")}</div>${net ? `<div class="comm-dock">${commBar(true)}</div>` : ""}</div>`;
 
   if (st.phase === "roundOver" || st.phase === "gameOver") html += summaryHTML(st);
   html += chatPanelHTML();
