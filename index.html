@@ -782,7 +782,7 @@ function migrateState(st) {
   if (st.lastRound) st.lastRound.teams.forEach(s => scaleRow(s, st.rules));
   return st;
 }
-const REVIEW_MS = 120000;
+const REVIEW_MS = 90000;
 // Alle (noch verbundenen) Menschen haben „ابدأ جولة جديدة“ gedrückt?
 const allReady = st => st.players.every((p, i) => (st.ready || [])[i] || !p.human || p.bot || p.offline);
 function startNextRound() {
@@ -817,7 +817,7 @@ function endRound(st, wentOut) {
   if (best >= r.target && leaders.length === 1) { st.winner = leaders[0]; st.phase = "gameOver"; }
   else {
     st.phase = "roundOver";
-    // Tisch kontrollieren: höchstens 2 Minuten, dann startet die nächste Runde von selbst.
+    // Tisch kontrollieren: höchstens 1:30 Minuten, dann startet die nächste Runde von selbst.
     st.ready = st.players.map(p => !p.human || !!p.bot);
     st.reviewUntil = Date.now() + REVIEW_MS;
   }
