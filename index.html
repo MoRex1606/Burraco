@@ -258,6 +258,9 @@ body:has(#app.table) { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { .hand .card { transition: none; } }
 @media (max-height: 700px) { .hand { --cw: 52px; } .seat { --cw: 24px; } }
 .summary { max-height: 100%; overflow-y: auto; }
+.summary-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.review-note { margin: 0; font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.review-chip { align-self: center; font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 /* Hilfscontainer nur fürs Querformat; hochkant verhalten sie sich, als gäbe es sie nicht. */
 .board { display: contents; }
 /* Hochformat: Auslagen des Gegners oben, كومة الحرق genau dazwischen, eigene Auslagen unten; jede Hälfte scrollt für sich. */
@@ -761,6 +764,23 @@ function migrateState(st) {
   if (st.lastRound) st.lastRound.teams.forEach(s => scaleRow(s, st.rules));
   return st;
 }
+const REVIEW_MS = 120000;
+// Alle (noch verbundenen) Menschen haben „ابدأ جولة جديدة“ gedrückt?
+const allReady = st => st.players.every((p, i) => (st.ready || [])[i] || !p.human || p.bot || p.offline);
+function startNextRound() {
+  const st = ui.st;
+  if (!st || st.phase !== "roundOver") return;
+  delete st.ready; delete st.reviewUntil;
+  startRound(st); ui.selected = new Set(); ui.msg = null; ui.peek = false; render(); runComputer();
+}
+function markReady(seat) {
+  const st = ui.st;
+  if (!st || st.phase !== "roundOver") return;
+  if (!st.ready) st.ready = st.players.map(() => false);
+  st.ready[seat] = true;
+  if (allReady(st)) return startNextRound();
+  render();
+}
 function endRound(st, wentOut) {
   const r = st.rules, anyProject = [0, 1].some(t => hasProject(st, t));
   const res = [0, 1].map(t => {
@@ -777,7 +797,12 @@ function endRound(st, wentOut) {
   st.lastRound = { teams: res, wentOut };
   const best = Math.max(...st.scores), leaders = [0, 1].filter(t => st.scores[t] === best);
   if (best >= r.target && leaders.length === 1) { st.winner = leaders[0]; st.phase = "gameOver"; }
-  else st.phase = "roundOver";
+  else {
+    st.phase = "roundOver";
+    // Tisch kontrollieren: höchstens 2 Minuten, dann startet die nächste Runde von selbst.
+    st.ready = st.players.map(p => !p.human || !!p.bot);
+    st.reviewUntil = Date.now() + REVIEW_MS;
+  }
   st.log = wentOut !== null ? "فريق " + TEAM_NAMES[wentOut] + " ختم الجولة." : "انتهت كومة السحب، انتهت الجولة.";
 }
 
@@ -1092,6 +1117,8 @@ function renderTable() {
   const cur = st.players[st.current];
   const canBot = net && net.host && cur.human && cur.offline && !cur.bot && (st.phase === "draw" || st.phase === "play");
   const canDraw = isHumanTurn() && st.phase === "draw";
+  const over = st.phase === "roundOver" || st.phase === "gameOver";
+  if (!over) ui.peek = false;
   const canPlay = isHumanTurn() && st.phase === "play";
   const top = st.discard[st.discard.length - 1];
   const hand = st.hands[ui.me];
@@ -1124,17 +1151,17 @@ function renderTable() {
     </button></div>
     <div class="mside us">${meldsHTML(st, us, "نحن")}</div></div>
     <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st)} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
-    <div class="actions">
+    <div class="actions">${over ? `<button class="btn primary" data-act="result">النتيجة</button>${st.phase === "roundOver" ? `<span class="review-chip">⏱ <bdi class="review-timer" dir="ltr">${mmss(reviewLeft(st) ?? 0)}</bdi></span>` : ""}</div></div>` : `
       <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
       ${canPlay && st.mustMeld
         ? `<button class="btn" data-act="return">أرجِع${r.returnPenalty ? ` (−${r.returnPenalty})` : ""}</button>`
         : `<button class="btn" data-act="discard" ${canPlay && ui.selected.size === 1 ? "" : "disabled"}>ارمِ</button>`}
       ${canBot ? '<button class="btn" data-act="botseat">دع الكمبيوتر يلعب عنه</button>' : ""}
-    </div></div>
+    </div></div>`}
     <div class="hand" style="--overlap:${handOverlap(hand.length)}px">${sayHTML(ui.me)}<div class="hand-inner">
       ${hand.map(c => cardHTML(c, ui.selected.has(c.id) ? "sel" : "")).join("")}</div>${net ? `<div class="comm-dock">${commBar(true)}</div>` : ""}</div>`;
 
-  if (st.phase === "roundOver" || st.phase === "gameOver") html += summaryHTML(st);
+  if (over && !ui.peek) html += summaryHTML(st);
   html += chatPanelHTML();
   if (ui.sheet) html += sheetHTML(st);
   if (ui.confirmQuit) html += quitConfirmHTML();
@@ -1275,12 +1302,21 @@ function fitMelds() {
     el.style.setProperty("--meld-cw", lo + "px");
   }
 }
+// Restzeit bis zum automatischen Start der nächsten Runde (m:ss).
+function reviewLeft(st) {
+  return st && st.phase === "roundOver" && st.reviewUntil ? Math.max(0, Math.ceil((st.reviewUntil - hostNow()) / 1000)) : null;
+}
+const mmss = s => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+function reviewHTML(st) {
+  const s = reviewLeft(st);
+  return s === null ? "" : `<p class="review-note">تبدأ الجولة تلقائياً بعد <bdi class="review-timer" dir="ltr">${mmss(s)}</bdi></p>`;
+}
 function summaryHTML(st) {
   const us = teamOf(ui.me), them = 1 - us;
   const res = [st.lastRound.teams[us], st.lastRound.teams[them]];
   const row = (label, f) => `<tr><td>${label}</td><td>${f(res[0])}</td><td>${f(res[1])}</td></tr>`;
   const title = st.phase === "gameOver" ? (st.winner === us ? "مبروك، فزتم!" : "فاز الخصم") : "انتهت الجولة";
-  const guest = net && !net.host;
+  const waiting = st.phase === "roundOver" && (st.ready || [])[ui.me];
   return `<div class="overlay"><div class="summary">
     <h2>${title}</h2>
     <table>
@@ -1295,9 +1331,12 @@ function summaryHTML(st) {
       <tr class="sum"><td>هذه الجولة</td><td>${res[0].total}</td><td>${res[1].total}</td></tr>
       <tr class="sum"><td>المجموع</td><td>${st.scores[us]}</td><td>${st.scores[them]}</td></tr>
     </table>
+    <div class="summary-actions">
     ${st.phase === "gameOver" ? '<button class="btn primary" data-act="quit">لعبة جديدة</button>'
-      : guest ? '<button class="btn" disabled>بانتظار المضيف لبدء الجولة التالية …</button>'
-      : '<button class="btn primary" data-act="next">الجولة التالية</button>'}
+      : waiting ? '<button class="btn" disabled>بانتظار اللاعبين …</button>'
+      : '<button class="btn primary" data-act="next">ابدأ جولة جديدة</button>'}
+    <button class="btn" data-act="peek">شوفني الطاولة</button></div>
+    ${reviewHTML(st)}
   </div></div>`;
 }
 
@@ -1394,9 +1433,15 @@ app.addEventListener("click", e => {
   if (act === "quit") {
     quitCleanup();
     netLeave(); ui.gen++; ui.thinking = false; ui.screen = "start"; ui.st = null; ui.me = 0; return render(); }
+  if (act === "peek") { ui.peek = true; return render(); }
+  if (act === "result") { ui.peek = false; return render(); }
   if (act === "next") {
-    if (net && !net.host) return;
-    startRound(ui.st); ui.selected = new Set(); ui.msg = null; render(); return runComputer();
+    if (!ui.st || ui.st.phase !== "roundOver") return;
+    if (net && !net.host) {
+      if (!ui.st.ready) ui.st.ready = ui.st.players.map(() => false);
+      ui.st.ready[ui.me] = true; netSend({ t: "ready" }); return render();
+    }
+    return markReady(ui.me);
   }
   if (act === "draw") return humanAction({ a: "draw" });
   if (act === "take") return humanAction({ a: "take" });
@@ -1587,6 +1632,11 @@ function hostOnData(conn, d) {
     const hand = ui.st.hands[seat], byId = new Map(hand.map(c => [c.id, c]));
     if (d.ids.length !== hand.length || new Set(d.ids).size !== hand.length || !d.ids.every(id => byId.has(id))) return;
     ui.st.hands[seat] = d.ids.map(id => byId.get(id));
+    return;
+  }
+  if (d.t === "ready") {
+    const seat = hostPlayer(conn.cid);
+    if (seat >= 0) markReady(seat);
     return;
   }
   if (d.t === "act") {
@@ -2149,6 +2199,13 @@ setInterval(() => {
     render();
     runComputer();
     return;
+  }
+  if (st.phase === "roundOver") {
+    const left = reviewLeft(st);
+    if (!(net && !net.host) && left === 0) return startNextRound();
+    // Wer offline geht, wird nicht mehr abgewartet.
+    if (net && net.host && st.ready && allReady(st)) return startNextRound();
+    if (left !== null) app.querySelectorAll(".review-timer").forEach(el => { el.textContent = mmss(left); });
   }
   const s = timerLeft(st);
   app.querySelectorAll(".timer").forEach(el => {
