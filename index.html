@@ -251,7 +251,7 @@ body:has(#app.table) { margin-top: 0; }
   #app { max-width: 1000px; overflow-y: auto; padding-block: 4px; gap: 6px; }
   #app.table {
     display: grid; gap: 4px 14px;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: max-content minmax(0, 1fr); /* rechte Spalte so schmal wie Kopfzeile/Spieler */
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     grid-template-areas: "top melds" "board melds" "controls melds" "hand hand";
   }
@@ -260,14 +260,29 @@ body:has(#app.table) { margin-top: 0; }
   .top, .top-side { gap: 4px; }
   .goal { font-size: 10px; }
   .seat .fan .back + .back { margin-left: calc(var(--cw) * -.72); }
-  .board { grid-area: board; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  /* Schmale rechte Spalte in Zeilen: ✕ + Ziel/Tafel · rechts/Partner/links · Stapel · Hinweis · Tasten. */
+  .top { display: flex; }
+  .top .top-mid { display: none; }
+  .top-side.end { justify-content: flex-start; }
+  .board { grid-area: board; display: grid; grid-template-columns: auto auto 1fr; grid-template-areas: "p p ." "r l ." "piles piles ."; align-items: center; gap: 6px 18px; /* Partner am rechten Rand unter der Kopfzeile, darunter اليمين und direkt daneben اليسار */ }
+  .board .mid { display: contents; }
+  .board > .seat:first-child { grid-area: p; justify-self: center; } /* mittig über اليمين und اليسار */
+  .board .mid > :first-child { grid-area: l; justify-self: start; } /* direkt links neben اليمين */
+  .board .mid > :last-child { grid-area: r; justify-self: start; } /* RTL: start = rechts */
+  .board .piles { grid-area: piles; justify-self: center; }
   .seat { --cw: 24px; }
-  .board .mid { gap: 14px; }
   .piles { gap: 16px; }
   .discard-row { padding: 2px 8px 4px; gap: 2px; }
   .discard-cards { --cw: 32px; min-height: calc(32px * 1.42); }
   .melds { grid-area: melds; }
-  .controls { grid-area: controls; display: flex; align-items: center; align-self: start; gap: 8px; }
+  /* Hinweistext rechts oben, Tasten eine Zeile darunter (ebenfalls rechts). */
+  .controls { grid-area: controls; display: flex; flex-direction: column; align-items: stretch; align-self: start; gap: 6px; }
+  .controls .status { flex: none; }
+  /* Hinweis bestimmt die Spaltenbreite nicht mit: nie breiter als bis zum Tafel-Knopf; Uhr in eigener Zeile, Text darunter. */
+  .controls { width: 0; min-width: 100%; }
+  .status p { white-space: normal; overflow: visible; }
+  .status .timer { display: block; width: fit-content; margin: 0 0 3px; }
+  .actions { justify-content: flex-start; }
   .status { flex: 1; min-width: 0; min-height: 0; text-align: start; }
   .btn { padding: 7px 14px; }
   .hand { grid-area: hand; padding: 12px 0 0; --cw: 46px; }
@@ -300,6 +315,10 @@ body:has(#app.table) { margin-top: 0; }
   .melds h3.wm { font-size: 56px; }
   .controls { grid-area: controls; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
   .controls .status { flex: none; }
+  /* Hinweis bestimmt die Spaltenbreite nicht mit: nie breiter als bis zum Tafel-Knopf; Uhr in eigener Zeile, Text darunter. */
+  .controls { width: 0; min-width: 100%; }
+  .status p { white-space: normal; overflow: visible; }
+  .status .timer { display: block; width: fit-content; margin: 0 0 3px; }
   .hand { grid-area: hand; padding: 18px 0 4px; --cw: 60px; }
 }
 
@@ -978,7 +997,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v41 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v53 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
