@@ -2217,7 +2217,7 @@ setInterval(() => {
 
 // ----- Nach dem Neuladen weiterspielen -----
 function saveSolo() {
-  if (net || !ui.st || ui.screen !== "table") return;
+  if (net || !ui.st || ui.screen !== "table" || ui.st.test) return;
   try { localStorage.setItem("brk-solo", JSON.stringify({ st: ui.st, mode: ui.mode, close: ui.close, speed: ui.speed, at: Date.now() })); }
   catch (e) { ui.saveError = String(e && e.name || e); }
 }
@@ -2243,7 +2243,38 @@ function quitCleanup() {
     else { const s = savedHost(); if (s) { s.left = true; localStorage.setItem("brk-host", JSON.stringify(s)); } }
   }
 }
+// Testspiel (?test=1): viele Auslagen auf beiden Seiten, mehrere Projekte, Ziehstapel leer.
+// Wird nicht gespeichert, damit ein laufendes Solospiel erhalten bleibt.
+function startTestGame() {
+  ui.mode = "teams"; ui.me = 0;
+  const st = newGame([{ name: "أنت", human: true }, { name: "اليمين" }, { name: "الشريك" }, { name: "اليسار" }], closeRules());
+  const pool = doubleDeck();
+  const pick = (rank, suit) => { const i = pool.findIndex(c => c.rank === rank && (suit === undefined || c.suit === suit)); return pool.splice(i, 1)[0]; };
+  const meld = specs => { const m = validate(specs.map(([r, s]) => pick(r, s)), st.rules); if (!m) throw new Error("Testauslage ungültig"); return m; };
+  const run = (suit, from, to) => Array.from({ length: to - from + 1 }, (_, k) => [from + k, suit]);
+  st.melds = [[
+    meld(run(2, 4, 10)),                               // Projekt ohne Joker (200)
+    meld([[5, 1], [6, 1], [0], [8, 1], [9, 1], [10, 1], [11, 1]]), // Projekt mit Joker (100)
+    meld([[1, 0], [1, 1], [1, 2], [1, 3], [1, 0], [1, 1], [1, 2]]), // Satz aus Assen (300)
+    meld(run(3, 3, 6)), meld(run(0, 9, 12)), meld([[3, 0], [3, 1], [3, 2]]), meld(run(3, 10, 13)),
+  ], [
+    meld(run(0, 3, 9)),                                // Projekt ohne Joker (200)
+    meld([[7, 3], [8, 3], [2, 0], [10, 3], [11, 3], [12, 3], [13, 3]]), // Projekt mit 2er (100)
+    meld(run(2, 11, 13)), meld([[3, 1], [3, 3], [3, 2]]), meld(run(1, 8, 10)),
+    meld([[4, 2], [5, 2], [6, 2], [7, 2]]), meld([[11, 0], [12, 0], [13, 0]]),
+  ]];
+  st.opened = [true, true]; st.tookPot = [true, true]; st.pots = [];
+  shuffle(pool);
+  st.hands = [11, 7, 6, 8].map(n => sortHand(pool.splice(-n)));
+  st.discard = pool.splice(-4);
+  st.stock = [];
+  st.current = 0; st.phase = "draw"; st.test = true;
+  st.log = "لعبة تجريبية: كومة السحب فارغة.";
+  ui.st = st; ui.screen = "table"; ui.selected = new Set(); ui.msg = null;
+  render();
+}
 function restoreOnLoad() {
+  if (urlParams.get("test")) return startTestGame();
   const guest = localStorage.getItem("brk-guest"), host = savedHost();
   if (urlParams.get("room")) {
     if (ONLINE && guest === ui.code && ui.name) joinRoom(ui.code);
