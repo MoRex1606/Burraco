@@ -423,7 +423,12 @@ body:has(#app.table) { margin-top: 0; }
 /* Querformat: Lautsprecher, Mikro und Nachrichten fest in der Bildschirmecke links unten, neben der Hand.
    Hochformat bleibt wie bisher (Tasten in der Kopfzeile). */
 .comm-dock { display: none; }
+/* Hochformat: Der obere Gegner/Partner ragt in die Kopfzeile und würde die Regel verdecken, deshalb steht sie dort unter dem Status. */
+.top .goal { display: none; }
+.status small.goal { white-space: nowrap; }
 @media (orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-height: 561px) and (min-width: 900px) {
+  .top .goal { display: inline; }
+  .status small.goal { display: none; }
   .top .comm { display: none; }
   #app.table:has(.top .comm) .board > .seat:first-child { translate: none; }
   .comm-dock { display: block; position: fixed; z-index: 4; left: max(10px, env(safe-area-inset-left, 0px)); bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
@@ -1102,7 +1107,7 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">V2.8 · ${storageInfo()}</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">V2.9 · ${storageInfo()}</p>
     <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
@@ -1141,6 +1146,9 @@ function statusText(st) {
   if (st.phase === "play" && st.mustMeld) return "نزّل أو أضف، وإلا أرجِع.";
   return st.phase === "draw" ? "اسحب من الكومة أو خذ كومة الحرق." : "نزّل، أو أضف على تنزيل (اضغط عليه)، أو ارمِ ورقة.";
 }
+// Kopfzeile rechts (Querformat) bzw. Zeile unter dem Status (Hochformat): online Verbindung, dann die Regel zum Beenden.
+const goalHTML = (r, sep) => (net ? `<span class="net-badge">${net.host ? "المضيف " : ""}${netBadge()}</span>${sep}` : "")
+  + `الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi>`;
 function renderTable() {
   const st = ui.st, four = st.players.length === 4, r = st.rules, n = st.players.length;
   const rel = k => (ui.me + k) % n, us = teamOf(ui.me), them = 1 - us;
@@ -1158,8 +1166,7 @@ function renderTable() {
       <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button>${commBar(true)}</div>
       <span class="top-mid"></span>
       <div class="top-side end">
-      ${net && net.status !== "open" ? `<span class="goal"><span class="net-badge">${netBadge()}</span></span>`
-        : `<span class="goal">الهدف ${r.target}<br>الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi></span>`}
+      <span class="goal">${goalHTML(r, "<br>")}</span>
       ${canPause(st) ? `<button class="comm-btn pause-btn ${st.paused ? "on" : ""}" data-act="pause" aria-pressed="${!!st.paused}" aria-label="${st.paused ? "تابع اللعب" : "أوقف اللعب مؤقتاً"}">${icon(st.paused ? SVG.play : SVG.pause)}</button>` : ""}
       <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button></div>
     </div>
@@ -1181,7 +1188,7 @@ function renderTable() {
         ${st.discard.length ? st.discard.map(c => cardHTML(c)).join("") : '<div class="slot"></div>'}</div>
     </button></div>
     <div class="mside us">${meldsHTML(st, us, "نحن")}</div></div>
-    <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st)} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small></div>
+    <div class="controls"><div class="status"><p class="${ui.msg ? "err" : ""}">${timerHTML(st)} ${esc(ui.msg || statusText(st))}</p><small>${esc(st.log)}</small><small class="goal">${goalHTML(r, " · ")}</small></div>
     <div class="actions">${over ? `<button class="btn primary" data-act="result">النتيجة</button>${st.phase === "roundOver" ? `<span class="review-chip">⏱ <bdi class="review-timer" dir="ltr">${mmss(reviewLeft(st) ?? 0)}</bdi></span>` : ""}</div></div>` : `
       <button class="btn primary" data-act="lay" ${canPlay && ui.selected.size >= r.minMeld ? "" : "disabled"}>نزّل</button>
       ${canPlay && st.mustMeld
