@@ -2265,11 +2265,12 @@ function startTestGame() {
   ]];
   st.opened = [true, true]; st.tookPot = [true, true]; st.pots = [];
   shuffle(pool);
-  st.hands = [11, 7, 6, 8].map(n => sortHand(pool.splice(-n)));
+  // Wie im echten Spiel: Du hast gerade die letzte Karte vom Stapel gezogen; nach deinem Abwurf endet die Runde.
+  st.hands = [12, 7, 6, 8].map(n => sortHand(pool.splice(-n)));
   st.discard = pool.splice(-4);
   st.stock = [];
-  st.current = 0; st.phase = "draw"; st.test = true;
-  st.log = "لعبة تجريبية: كومة السحب فارغة.";
+  st.current = 0; st.phase = "play"; st.test = true;
+  st.log = "لعبة تجريبية: سحبت آخر ورقة، الجولة تنتهي بعد رميتك.";
   ui.st = st; ui.screen = "table"; ui.selected = new Set(); ui.msg = null;
   render();
 }
