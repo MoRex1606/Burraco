@@ -418,7 +418,7 @@ const BASE_RULES = {
   // Bedingung zum Beenden (vor Spielbeginn wählbar): wie viele der zwei Projekte ohne Joker sein müssen.
   // 1 = 200 + 100 (eins ohne, eins mit genau einem Joker; 2× ohne geht auch), 2 = 2×200 (beide ohne Joker).
   closeClean: 1,
-  // Spielgeschwindigkeit (vor Spielbeginn wählbar): Sekunden pro Zugphase. 30 = عادي, 20 = سريع.
+  // Spielgeschwindigkeit (vor Spielbeginn wählbar): Sekunden pro Zugphase. 40 = بطيء, 30 = عادي, 20 = سريع.
   turnSecs: 30,
   setRanks: [1, 2, 3], // Sätze (gleiche Werte) nur aus A, 2 und 3
   returnPenalty: 0, // Strafe fürs Zurücklegen der Ablage (vorerst aus)
@@ -576,9 +576,9 @@ function meldsAllowClose(melds, r) {
 const canClose = (st, t) => meldsAllowClose(st.melds[t], st.rules);
 const closeText = c => c === 2 ? "مشروعين 200" : "مشروع 200 ومشروع 100";
 const closeShort = c => c === 2 ? "2×200" : "200+100";
-const speedOf = v => v === 2 ? 2 : 1; // 1 = عادي (30 s), 2 = سريع (20 s)
-const speedSecs = v => speedOf(v) === 2 ? 20 : 30;
-const speedText = v => speedOf(v) === 2 ? "سريع (20 ثانية)" : "عادي (30 ثانية)";
+const speedOf = v => v === 2 || v === 3 ? v : 1; // 1 = عادي (30 s), 2 = سريع (20 s), 3 = بطيء (40 s)
+const speedSecs = v => ({ 1: 30, 2: 20, 3: 40 })[speedOf(v)];
+const speedText = v => ({ 1: "عادي (30 ثانية)", 2: "سريع (20 ثانية)", 3: "بطيء (40 ثانية)" })[speedOf(v)];
 const closeRules = () => Object.assign({}, BASE_RULES, { closeClean: ui.close === 2 ? 2 : 1, turnSecs: speedSecs(ui.speed) });
 const canTakePot = (st, t) => !st.tookPot[t] && st.pots.length > 0;
 const needsOpening = (st, t) => st.scores[t] >= st.rules.openingThreshold && !st.opened[t];
@@ -989,6 +989,7 @@ function renderStart() {
         <button id="close-2" class="${ui.close === 2 ? "on" : ""}" data-act="close" data-v="2" dir="ltr">2×200</button>
       </div>
       <div class="seg" role="group" aria-label="سرعة اللعب">
+        <button id="speed-3" class="${speedOf(ui.speed) === 3 ? "on" : ""}" data-act="speed" data-v="3">بطيء</button>
         <button id="speed-1" class="${speedOf(ui.speed) === 1 ? "on" : ""}" data-act="speed" data-v="1">عادي</button>
         <button id="speed-2" class="${speedOf(ui.speed) === 2 ? "on" : ""}" data-act="speed" data-v="2">سريع</button>
       </div>
@@ -1003,8 +1004,8 @@ function renderStart() {
     </div>
     ${ONLINE ? "" : '<p class="net-note">اللعب أونلاين يعمل من رابط الموقع فقط، وليس من هنا.</p>'}
     ${ui.notice ? `<p class="net-note err">${esc(ui.notice)}</p>` : ""}
-    <p class="rules-note" dir="ltr" style="opacity:.5">v54 · ${storageInfo()}</p>
-    <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
+    <p class="rules-note" dir="ltr" style="opacity:.5">v55 · ${storageInfo()}</p>
+    <p class="rules-note">11 ورقة لكل لاعب، المور يأخذ بعد ان يفرغ اللاعب يده من البطاقات، بجانب بطاقات ال 2 يوجد جوكران حقيقيان. المجموعة من نفس الرقم فقط لـ A و2 و3. يجوز أكثر من جوكر في التنزيل. المشروع 7 أوراق أو أكثر وفيه جوكر واحد على الأكثر، ومشروع الجوكر يُحسب فقط بعد مشروع بدون جوكر. للفتوح مشروعان على الأقل، حسب الاختيار: 200 + 100 أو 2×200. لكل دور 40 ثانية (بطيء) أو 30 ثانية (عادي) أو 20 ثانية (سريع) للسحب، ومثلها حتى الرمي.</p>
   </div>`;
 }
 function seatHTML(st, p, compact) {
@@ -1876,6 +1877,7 @@ function renderLobby() {
         <button class="${L.close === 1 ? "on" : ""}" data-act="lclose" data-v="1" dir="ltr">200 + 100</button>
         <button class="${L.close === 2 ? "on" : ""}" data-act="lclose" data-v="2" dir="ltr">2×200</button></div>
       <div class="seg" role="group" aria-label="سرعة اللعب">
+        <button class="${speedOf(L.speed) === 3 ? "on" : ""}" data-act="lspeed" data-v="3">بطيء</button>
         <button class="${speedOf(L.speed) === 1 ? "on" : ""}" data-act="lspeed" data-v="1">عادي</button>
         <button class="${speedOf(L.speed) === 2 ? "on" : ""}" data-act="lspeed" data-v="2">سريع</button></div>
       <p class="goal-note">للفتوح: ${closeText(L.close)} · السرعة: ${speedText(L.speed)}</p>`
@@ -1935,7 +1937,7 @@ function onlineClick(act, el) {
 }
 
 // ----- Zug-Timer -----
-// Jeder Mensch hat 30 Sekunden (عادي) bzw. 20 Sekunden (سريع, st.rules.turnSecs) zum Ziehen (Stapel oder Ablage)
+// Jeder Mensch hat 40 Sekunden (بطيء), 30 Sekunden (عادي) bzw. 20 Sekunden (سريع, st.rules.turnSecs) zum Ziehen (Stapel oder Ablage)
 // und danach wieder genauso lange bis zum Abwerfen.
 // Die Frist (st.deadline) steht im Spielstand: Der Gastgeber (bzw. das Solo-Spiel) setzt sie, prüft sie und
 // spielt bei Ablauf automatisch. Sie wird mitgespeichert und übersteht so ein Neuladen.
@@ -1948,7 +1950,7 @@ function syncTimer(st) {
   st.deadline = key ? Date.now() + turnMs(st) : null;
 }
 // Wer eine neue Auslage legt oder an eine bestehende anlegt, bekommt Zeit dazu, höchstens bis zur vollen Zugzeit:
-// عادي +10 Sekunden (bis 30), سريع +5 Sekunden (bis 20).
+// بطيء +10 Sekunden (bis 40), عادي +10 Sekunden (bis 30), سريع +5 Sekunden (bis 20).
 const bonusMs = st => turnMs(st) <= 20000 ? 5000 : 10000;
 function addTurnTime(st) {
   if (st.deadline && timerActive(st)) st.deadline = Math.min(st.deadline + bonusMs(st), Date.now() + turnMs(st));
