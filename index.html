@@ -424,10 +424,11 @@ body:has(#app.table) { margin-top: 0; }
    Hochformat bleibt wie bisher (Tasten in der Kopfzeile). */
 .comm-dock { display: none; }
 /* Hochformat: Der obere Gegner/Partner ragt in die Kopfzeile und würde die Regel verdecken, deshalb steht sie dort unter dem Status. */
-.top .goal { display: none; }
+.goal-dock { display: none; }
 .status small.goal { white-space: nowrap; }
 @media (orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-height: 561px) and (min-width: 900px) {
-  .top .goal { display: inline; }
+  /* Querformat: Online-Status und Regel zum Beenden fest unten rechts, neben der Hand. */
+  .goal-dock { display: block; position: fixed; z-index: 4; text-align: end; right: max(12px, env(safe-area-inset-right, 0px)); bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
   .status small.goal { display: none; }
   .top .comm { display: none; }
   #app.table:has(.top .comm) .board > .seat:first-child { translate: none; }
@@ -1146,7 +1147,7 @@ function statusText(st) {
   if (st.phase === "play" && st.mustMeld) return "نزّل أو أضف، وإلا أرجِع.";
   return st.phase === "draw" ? "اسحب من الكومة أو خذ كومة الحرق." : "نزّل، أو أضف على تنزيل (اضغط عليه)، أو ارمِ ورقة.";
 }
-// Kopfzeile rechts (Querformat) bzw. Zeile unter dem Status (Hochformat): online Verbindung, dann die Regel zum Beenden.
+// Unten rechts (Querformat) bzw. Zeile unter dem Status (Hochformat): online Verbindung, dann die Regel zum Beenden.
 const goalHTML = (r, sep) => (net ? `<span class="net-badge">${net.host ? "المضيف " : ""}${netBadge()}</span>${sep}` : "")
   + `الفتوح <bdi dir="ltr">${closeShort(closeCleanOf(r))}</bdi>`;
 function renderTable() {
@@ -1166,7 +1167,6 @@ function renderTable() {
       <div class="top-side"><button class="icon-btn" data-act="askquit" aria-label="إنهاء اللعبة">✕</button>${commBar(true)}</div>
       <span class="top-mid"></span>
       <div class="top-side end">
-      <span class="goal">${goalHTML(r, "<br>")}</span>
       ${canPause(st) ? `<button class="comm-btn pause-btn ${st.paused ? "on" : ""}" data-act="pause" aria-pressed="${!!st.paused}" aria-label="${st.paused ? "تابع اللعب" : "أوقف اللعب مؤقتاً"}">${icon(st.paused ? SVG.play : SVG.pause)}</button>` : ""}
       <button class="comm-btn sheet-btn" data-act="sheet" aria-label="لوحة التسجيل">${icon(SVG.sheet)}</button></div>
     </div>
@@ -1197,7 +1197,7 @@ function renderTable() {
       ${canBot ? '<button class="btn" data-act="botseat">دع الكمبيوتر يلعب عنه</button>' : ""}
     </div></div>`}
     <div class="hand" style="--overlap:${handOverlap(hand.length)}px">${sayHTML(ui.me)}<div class="hand-inner">
-      ${hand.map(c => cardHTML(c, ui.selected.has(c.id) ? "sel" : "")).join("")}</div>${net ? `<div class="comm-dock">${commBar(true)}</div>` : ""}</div>`;
+      ${hand.map(c => cardHTML(c, ui.selected.has(c.id) ? "sel" : "")).join("")}</div>${net ? `<div class="comm-dock">${commBar(true)}</div>` : ""}<div class="goal goal-dock">${goalHTML(r, "<br>")}</div></div>`;
 
   if (over && !ui.peek) html += summaryHTML(st);
   html += chatPanelHTML();
